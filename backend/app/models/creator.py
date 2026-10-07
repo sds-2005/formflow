@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import String, Integer
+from sqlalchemy import String, Integer, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import List
 
@@ -19,7 +19,7 @@ class CreatorSession(Base):
     __tablename__ = "creator_sessions"
     
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    creator_id: Mapped[str] = mapped_column(String, nullable=False)
+    creator_id: Mapped[str] = mapped_column(String, ForeignKey("creators.id", ondelete="CASCADE"), nullable=False)
     token_hash: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
     created_at: Mapped[str] = mapped_column(String, default=utc_now, nullable=False)
     expires_at: Mapped[str] = mapped_column(String, nullable=False, index=True)
