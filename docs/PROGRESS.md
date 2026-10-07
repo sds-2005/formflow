@@ -38,12 +38,19 @@
 - Form versioning snapshot implementation
 - Public routing and SSR
 
-## Next Milestone
+## Current Milestone
 
 ### Milestone 5: Respondent Experience
 - One-question-at-a-time UI
 - Animation and transitions
 - Submission API
+
+## Next Milestone
+
+### Milestone 6: Results & Analytics
+- Form submission processing
+- Results view in workspace
+- Data aggregation
 
 ## Known Defects
 

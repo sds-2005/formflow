@@ -70,5 +70,8 @@ export const apiClient = {
     update: (formId: string, questionId: string, data: any) => fetchProxy<any>(`forms/${formId}/questions/${questionId}`, { method: "PATCH", body: JSON.stringify(data) }),
     delete: (formId: string, questionId: string) => fetchProxy<void>(`forms/${formId}/questions/${questionId}`, { method: "DELETE" }),
     reorder: (formId: string, questionIds: string[]) => fetchProxy<any[]>(`forms/${formId}/questions/reorder`, { method: "PUT", body: JSON.stringify({ question_ids: questionIds }) }),
+  },
+  public: {
+    submit: (slug: string, answers: Record<string, any>) => fetchProxy<any>(`public/forms/${slug}/submissions`, { method: "POST", body: JSON.stringify({ answers }) }),
   }
 };
