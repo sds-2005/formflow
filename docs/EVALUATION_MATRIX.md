@@ -148,5 +148,5 @@
 
 ---
 
-**Last updated:** After Milestone 6 (Results & Analytics)  
-**Next update:** After Milestone 7 (Polish & Handover)
+**Last updated:** After Milestone 7 (Polish & Handover - Complete!)  
+**Next update:** Project finished.
