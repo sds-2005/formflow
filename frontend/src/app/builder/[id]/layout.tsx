@@ -82,9 +82,13 @@ export default function BuilderLayout({
           )}
         </div>
         <div className="flex items-center gap-3">
-          <button className="rounded-lg px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100">
+          <Link
+            href={`/builder/${id}/preview`}
+            target="_blank"
+            className="rounded-lg px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+          >
             Preview
-          </button>
+          </Link>
           <button 
             onClick={() => publishMutation.mutate()}
             disabled={publishMutation.isPending}

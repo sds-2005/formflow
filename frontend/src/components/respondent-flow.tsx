@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiClient } from "@/lib/api-client";
 
-export default function RespondentFlow({ form }: { form: any }) {
+export default function RespondentFlow({ form, isPreview = false }: { form: any; isPreview?: boolean }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,10 +41,16 @@ export default function RespondentFlow({ form }: { form: any }) {
     return null;
   };
 
-  const handleNext = () => {
+  const handleNext = (overrideValue?: string) => {
     if (isSubmitting || isSubmitted) return;
     
-    const val = answers[currentQuestion.id];
+    const val = overrideValue !== undefined ? overrideValue : answers[currentQuestion.id];
+    const newAnswers = { ...answers };
+    if (overrideValue !== undefined) {
+      newAnswers[currentQuestion.id] = overrideValue;
+      setAnswers(newAnswers);
+    }
+    
     const validationError = validateAnswer(currentQuestion, val);
     if (validationError) {
       setError(validationError);
@@ -57,7 +63,7 @@ export default function RespondentFlow({ form }: { form: any }) {
       setDirection(1);
       setCurrentIndex((prev) => prev + 1);
     } else {
-      submitForm();
+      submitForm(newAnswers);
     }
   };
 
@@ -68,11 +74,19 @@ export default function RespondentFlow({ form }: { form: any }) {
     }
   };
 
-  const submitForm = async () => {
+  const submitForm = async (finalAnswers: any = answers) => {
     if (isSubmitting || isSubmitted) return;
     setIsSubmitting(true);
+    
+    if (isPreview) {
+      setTimeout(() => {
+        setIsSubmitted(true);
+      }, 600);
+      return;
+    }
+    
     try {
-      await apiClient.public.submit(form.slug, answers);
+      await apiClient.public.submit(form.slug, finalAnswers);
       setIsSubmitted(true);
     } catch (err) {
       console.error(err);
@@ -89,8 +103,8 @@ export default function RespondentFlow({ form }: { form: any }) {
           animate={{ opacity: 1, scale: 1 }}
           className="max-w-md"
         >
-          <h1 className="mb-4 text-4xl font-bold text-gray-900">Thank you!</h1>
-          <p className="text-xl text-gray-500">Your response has been recorded.</p>
+          <h1 className="mb-4 text-4xl font-bold text-gray-900">{isPreview ? "Preview Complete" : "Thank you!"}</h1>
+          <p className="text-xl text-gray-500">{isPreview ? "This was just a preview." : "Your response has been recorded."}</p>
         </motion.div>
       </div>
     );
@@ -177,8 +191,7 @@ export default function RespondentFlow({ form }: { form: any }) {
                       <div className="flex gap-4">
                         <button
                           onClick={() => {
-                            setAnswers({ ...answers, [currentQuestion.id]: "Yes" });
-                            setTimeout(handleNext, 300);
+                            handleNext("Yes");
                           }}
                           className={`flex items-center rounded-lg border-2 px-8 py-3 text-2xl font-medium transition-all ${answers[currentQuestion.id] === "Yes" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"}`}
                         >
@@ -187,8 +200,7 @@ export default function RespondentFlow({ form }: { form: any }) {
                         </button>
                         <button
                           onClick={() => {
-                            setAnswers({ ...answers, [currentQuestion.id]: "No" });
-                            setTimeout(handleNext, 300);
+                            handleNext("No");
                           }}
                           className={`flex items-center rounded-lg border-2 px-8 py-3 text-2xl font-medium transition-all ${answers[currentQuestion.id] === "No" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"}`}
                         >

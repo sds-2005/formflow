@@ -178,7 +178,7 @@ export default function BuilderPage({
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Type</label>
               <select 
-                className="w-full rounded-md border border-gray-300 p-2 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+                className="w-full rounded-md border border-gray-300 bg-white text-gray-900 p-2 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
                 value={activeQuestion.type}
                 onChange={(e) => {
                   apiClient.questions.update(id, activeQuestion.id, { type: e.target.value }).then(() => {
