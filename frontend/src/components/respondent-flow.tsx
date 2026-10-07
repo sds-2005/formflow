@@ -245,7 +245,7 @@ export default function RespondentFlow({ form, isPreview = false }: { form: any;
                   
                   <div className="mt-8 flex items-center gap-4">
                     <button
-                      onClick={handleNext}
+                      onClick={() => handleNext()}
                       disabled={isSubmitting}
                       className="rounded-md bg-blue-600 px-6 py-2.5 font-bold text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300"
                     >
@@ -271,7 +271,7 @@ export default function RespondentFlow({ form, isPreview = false }: { form: any;
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
         </button>
         <button
-          onClick={handleNext}
+          onClick={() => handleNext()}
           disabled={isSubmitting}
           className="flex h-10 w-10 items-center justify-center rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-30"
         >
