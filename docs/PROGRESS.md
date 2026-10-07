@@ -52,7 +52,7 @@
 - Results view in workspace
 - Data aggregation
 
-## Next Milestone
+## Current Milestone
 
 ### Milestone 7: Polish & Handover
 - E2E testing check

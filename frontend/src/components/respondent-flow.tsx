@@ -14,20 +14,9 @@ export default function RespondentFlow({ form }: { form: any }) {
   const questions = form.questions || [];
   const currentQuestion = questions[currentIndex];
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        // Prevent default form submission behavior if within a form, though we don't use <form>
-        // Go to next if answer exists or not required
-        e.preventDefault();
-        handleNext();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentIndex, answers]);
-
   const handleNext = () => {
+    if (isSubmitting || isSubmitted) return;
+    
     if (currentQuestion.required && !answers[currentQuestion.id]) {
       // In a real app, show error animation
       return;
@@ -42,13 +31,14 @@ export default function RespondentFlow({ form }: { form: any }) {
   };
 
   const handlePrev = () => {
-    if (currentIndex > 0) {
+    if (currentIndex > 0 && !isSubmitting) {
       setDirection(-1);
       setCurrentIndex((prev) => prev - 1);
     }
   };
 
   const submitForm = async () => {
+    if (isSubmitting || isSubmitted) return;
     setIsSubmitting(true);
     try {
       await apiClient.public.submit(form.slug, answers);
@@ -56,7 +46,6 @@ export default function RespondentFlow({ form }: { form: any }) {
     } catch (err) {
       console.error(err);
       alert("Failed to submit form.");
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -162,6 +151,12 @@ export default function RespondentFlow({ form }: { form: any }) {
                         placeholder="Type your answer here..."
                         value={answers[currentQuestion.id] || ""}
                         onChange={(e) => setAnswers({ ...answers, [currentQuestion.id]: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleNext();
+                          }
+                        }}
                       />
                     )}
                   </div>

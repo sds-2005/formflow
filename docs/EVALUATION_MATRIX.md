@@ -148,5 +148,5 @@
 
 ---
 
-**Last updated:** After Milestone 5 (Respondent Experience)  
-**Next update:** After Milestone 6 (Results & Analytics)
+**Last updated:** After Milestone 6 (Results & Analytics)  
+**Next update:** After Milestone 7 (Polish & Handover)

@@ -92,7 +92,7 @@ async def get_form_results(
     # Fetch submissions with answers eagerly loaded
     sub_stmt = select(Submission).where(Submission.form_id == form_id).order_by(Submission.submitted_at.desc()).options(selectinload(Submission.answers))
     sub_result = await session.execute(sub_stmt)
-    submissions = sub_result.scalars().all()
+    submissions = sub_result.unique().scalars().all()
 
     # Build response manually
     results = []
