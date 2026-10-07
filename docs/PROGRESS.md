@@ -31,12 +31,19 @@
 - Implement form creation and navigator
 - Implement question settings and canvas
 
-## Next Milestone
+## Current Milestone
 
 ### Milestone 4: Form Publishing & API
 - Publish form API endpoint
 - Form versioning snapshot implementation
 - Public routing and SSR
+
+## Next Milestone
+
+### Milestone 5: Respondent Experience
+- One-question-at-a-time UI
+- Animation and transitions
+- Submission API
 
 ## Known Defects
 

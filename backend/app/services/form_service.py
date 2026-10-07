@@ -77,3 +77,57 @@ class FormService:
         if not form:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
         await self.repo.delete_form(form)
+
+    async def publish_form(self, form_id: str, creator_id: str) -> FormResponse:
+        from app.models.form import FormVersion
+        from sqlalchemy import select, desc
+        from sqlalchemy.orm import selectinload
+        from app.models.question import Question
+
+        # Fetch form with questions and options eagerly loaded
+        stmt = select(self.repo.session.info.get("Form", self.repo.session.info.get("app.models.form.Form", None)))
+        # Actually it's easier to just use the repository to fetch the form and then fetch questions
+        form = await self.repo.get_form(form_id, creator_id)
+        if not form:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
+
+        # Get questions
+        q_stmt = select(Question).where(Question.form_id == form_id).order_by(Question.position).options(selectinload(Question.options))
+        q_result = await self.repo.session.execute(q_stmt)
+        questions = q_result.scalars().all()
+
+        import json
+        snapshot = []
+        for q in questions:
+            snapshot.append({
+                "id": q.id,
+                "type": q.type,
+                "title": q.title,
+                "description": q.description,
+                "required": bool(q.required),
+                "position": q.position,
+                "settings": q.settings,
+                "options": [{"id": o.id, "label": o.label, "position": o.position} for o in q.options]
+            })
+
+        # Find latest version
+        v_stmt = select(FormVersion).where(FormVersion.form_id == form_id).order_by(desc(FormVersion.version_number)).limit(1)
+        v_result = await self.repo.session.execute(v_stmt)
+        last_version = v_result.scalar_one_or_none()
+
+        new_version_number = 1 if not last_version else last_version.version_number + 1
+
+        version = FormVersion(
+            form_id=form.id,
+            version_number=new_version_number,
+            questions_snapshot=json.dumps(snapshot)
+        )
+        self.repo.session.add(version)
+        await self.repo.session.flush()
+
+        form.status = "published"
+        form.published_version_id = version.id
+        form.updated_at = utc_now()
+        form = await self.repo.update_form(form)
+
+        return await self.get_form(form_id, creator_id)

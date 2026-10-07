@@ -148,5 +148,5 @@
 
 ---
 
-**Last updated:** After Milestone 2 (Demo Session and Workspace Isolation)  
-**Next update:** After Milestone 3 (Core Form Builder)
+**Last updated:** After Milestone 3 (Core Form Builder)  
+**Next update:** After Milestone 4 (Form Publishing & API)

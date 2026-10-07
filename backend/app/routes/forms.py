@@ -60,3 +60,14 @@ async def delete_form(
 ):
     await service.delete_form(form_id, creator.creator_id)
     await session.commit()
+
+@router.post("/{form_id}/publish", response_model=FormResponse)
+async def publish_form(
+    form_id: str,
+    creator: CurrentCreator,
+    service: FormService = Depends(get_form_service),
+    session: AsyncSession = Depends(get_db_session)
+):
+    result = await service.publish_form(form_id, creator.creator_id)
+    await session.commit()
+    return result
