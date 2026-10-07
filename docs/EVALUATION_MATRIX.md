@@ -148,5 +148,5 @@
 
 ---
 
-**Last updated:** After Milestone 4 (Form Publishing & API)  
-**Next update:** After Milestone 5 (Respondent Experience)
+**Last updated:** After Milestone 5 (Respondent Experience)  
+**Next update:** After Milestone 6 (Results & Analytics)

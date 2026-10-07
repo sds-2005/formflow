@@ -45,12 +45,18 @@
 - Animation and transitions
 - Submission API
 
-## Next Milestone
+## Current Milestone
 
 ### Milestone 6: Results & Analytics
 - Form submission processing
 - Results view in workspace
 - Data aggregation
+
+## Next Milestone
+
+### Milestone 7: Polish & Handover
+- E2E testing check
+- Vercel + Railway deployment config
 
 ## Known Defects
 
