@@ -127,28 +127,50 @@ export default function RespondentFlow({ form }: { form: any }) {
                   )}
 
                   <div className="mt-8">
-                    {/* Render input based on type */}
-                    {currentQuestion.type === "text" || currentQuestion.type === "email" ? (
-                      <input
+                    {currentQuestion.type === "long_text" ? (
+                      <textarea
                         autoFocus
-                        type={currentQuestion.type}
-                        className="w-full border-b-2 border-blue-200 bg-transparent py-2 text-2xl text-gray-900 focus:border-blue-600 focus:outline-none"
+                        rows={4}
+                        className="w-full resize-none border-b-2 border-blue-200 bg-transparent py-2 text-2xl text-gray-900 focus:border-blue-600 focus:outline-none"
                         placeholder="Type your answer here..."
                         value={answers[currentQuestion.id] || ""}
                         onChange={(e) => setAnswers({ ...answers, [currentQuestion.id]: e.target.value })}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") {
+                          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                             e.preventDefault();
                             handleNext();
                           }
                         }}
                       />
+                    ) : currentQuestion.type === "boolean" ? (
+                      <div className="flex gap-4">
+                        <button
+                          onClick={() => {
+                            setAnswers({ ...answers, [currentQuestion.id]: "Yes" });
+                            setTimeout(handleNext, 300);
+                          }}
+                          className={`flex items-center rounded-lg border-2 px-8 py-3 text-2xl font-medium transition-all ${answers[currentQuestion.id] === "Yes" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"}`}
+                        >
+                          <span className="mr-3 flex h-6 w-6 items-center justify-center rounded border border-gray-300 bg-white text-sm">Y</span>
+                          Yes
+                        </button>
+                        <button
+                          onClick={() => {
+                            setAnswers({ ...answers, [currentQuestion.id]: "No" });
+                            setTimeout(handleNext, 300);
+                          }}
+                          className={`flex items-center rounded-lg border-2 px-8 py-3 text-2xl font-medium transition-all ${answers[currentQuestion.id] === "No" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"}`}
+                        >
+                          <span className="mr-3 flex h-6 w-6 items-center justify-center rounded border border-gray-300 bg-white text-sm">N</span>
+                          No
+                        </button>
+                      </div>
                     ) : (
                       <input
                         autoFocus
-                        type="text"
-                        className="w-full border-b-2 border-blue-200 bg-transparent py-2 text-2xl text-gray-900 focus:border-blue-600 focus:outline-none"
-                        placeholder="Type your answer here..."
+                        type={currentQuestion.type === "phone" ? "tel" : currentQuestion.type === "url" ? "url" : currentQuestion.type === "email" ? "email" : currentQuestion.type === "number" ? "number" : "text"}
+                        className="w-full border-b-2 border-blue-200 bg-transparent py-2 text-2xl text-gray-900 transition-colors focus:border-blue-600 focus:outline-none"
+                        placeholder={currentQuestion.type === "email" ? "name@example.com" : currentQuestion.type === "url" ? "https://" : currentQuestion.type === "phone" ? "(555) 555-5555" : "Type your answer here..."}
                         value={answers[currentQuestion.id] || ""}
                         onChange={(e) => setAnswers({ ...answers, [currentQuestion.id]: e.target.value })}
                         onKeyDown={(e) => {
@@ -158,6 +180,9 @@ export default function RespondentFlow({ form }: { form: any }) {
                           }
                         }}
                       />
+                    )}
+                    {currentQuestion.type === "long_text" && (
+                       <p className="mt-2 text-sm text-gray-400">Press Cmd/Ctrl + Enter to submit</p>
                     )}
                   </div>
                   

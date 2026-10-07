@@ -98,44 +98,68 @@ export default function BuilderPage({
           />
 
           {activeQuestion ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
-              <input
-                type="text"
-                className="w-full border-none text-2xl font-semibold text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-0"
-                defaultValue={activeQuestion.title}
-                placeholder="Your question here..."
-                onBlur={(e) => {
-                  if (e.target.value !== activeQuestion.title) {
-                    apiClient.questions.update(id, activeQuestion.id, { title: e.target.value }).then(() => {
-                      queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
-                    });
-                  }
-                }}
-              />
-              <input
-                type="text"
-                className="mt-2 w-full border-none text-lg text-gray-500 placeholder:text-gray-300 focus:outline-none focus:ring-0"
-                defaultValue={activeQuestion.description || ""}
-                placeholder="Description (optional)"
-                onBlur={(e) => {
-                  if (e.target.value !== activeQuestion.description) {
-                    apiClient.questions.update(id, activeQuestion.id, { description: e.target.value }).then(() => {
-                      queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
-                    });
-                  }
-                }}
-              />
-              
-              <div className="mt-8 pt-4 border-t border-gray-100">
-                 {activeQuestion.type === "text" && (
-                   <div className="text-xl text-gray-400 border-b border-gray-300 pb-2 w-full max-w-md">Type your answer here...</div>
-                 )}
-                 {activeQuestion.type === "email" && (
-                   <div className="text-xl text-gray-400 border-b border-gray-300 pb-2 w-full max-w-md">name@example.com</div>
-                 )}
-                 {activeQuestion.type === "number" && (
-                   <div className="text-xl text-gray-400 border-b border-gray-300 pb-2 w-full max-w-md">123</div>
-                 )}
+            <div className="flex w-full h-full items-center justify-center p-8">
+              <div className="w-full max-w-3xl space-y-4">
+                <div className="flex items-start gap-4">
+                  <span className="text-2xl font-bold text-blue-600 flex-shrink-0 mt-1">
+                    {questions.findIndex((q) => q.id === activeQuestion.id) + 1} &rarr;
+                  </span>
+                  <div className="flex-1 space-y-4">
+                    <input
+                      type="text"
+                      className="w-full border-none bg-transparent text-3xl font-medium text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-0"
+                      defaultValue={activeQuestion.title}
+                      placeholder="Your question here..."
+                      onBlur={(e) => {
+                        if (e.target.value !== activeQuestion.title) {
+                          apiClient.questions.update(id, activeQuestion.id, { title: e.target.value }).then(() => {
+                            queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
+                          });
+                        }
+                      }}
+                    />
+                    <input
+                      type="text"
+                      className="w-full border-none bg-transparent text-xl text-gray-500 placeholder:text-gray-300 focus:outline-none focus:ring-0"
+                      defaultValue={activeQuestion.description || ""}
+                      placeholder="Description (optional)"
+                      onBlur={(e) => {
+                        if (e.target.value !== activeQuestion.description) {
+                          apiClient.questions.update(id, activeQuestion.id, { description: e.target.value }).then(() => {
+                            queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
+                          });
+                        }
+                      }}
+                    />
+                    
+                    <div className="mt-12 pt-4">
+                       {activeQuestion.type === "text" && (
+                         <div className="text-2xl text-blue-300 border-b-2 border-blue-200 pb-2 w-full max-w-2xl">Type your answer here...</div>
+                       )}
+                       {activeQuestion.type === "long_text" && (
+                         <div className="text-2xl text-blue-300 border-b-2 border-blue-200 pb-12 w-full max-w-2xl">Type a long answer here...</div>
+                       )}
+                       {activeQuestion.type === "email" && (
+                         <div className="text-2xl text-blue-300 border-b-2 border-blue-200 pb-2 w-full max-w-2xl">name@example.com</div>
+                       )}
+                       {activeQuestion.type === "number" && (
+                         <div className="text-2xl text-blue-300 border-b-2 border-blue-200 pb-2 w-full max-w-2xl">123</div>
+                       )}
+                       {activeQuestion.type === "phone" && (
+                         <div className="text-2xl text-blue-300 border-b-2 border-blue-200 pb-2 w-full max-w-2xl">(555) 555-5555</div>
+                       )}
+                       {activeQuestion.type === "url" && (
+                         <div className="text-2xl text-blue-300 border-b-2 border-blue-200 pb-2 w-full max-w-2xl">https://...</div>
+                       )}
+                       {activeQuestion.type === "boolean" && (
+                         <div className="flex gap-4">
+                            <div className="rounded-lg border border-blue-200 bg-blue-50 px-8 py-3 text-xl font-medium text-blue-700">Y / Yes</div>
+                            <div className="rounded-lg border border-gray-200 bg-gray-50 px-8 py-3 text-xl font-medium text-gray-500">N / No</div>
+                         </div>
+                       )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
@@ -163,8 +187,12 @@ export default function BuilderPage({
                 }}
               >
                 <option value="text">Short Text</option>
+                <option value="long_text">Long Text</option>
                 <option value="email">Email</option>
                 <option value="number">Number</option>
+                <option value="phone">Phone Number</option>
+                <option value="url">Website URL</option>
+                <option value="boolean">Yes/No</option>
               </select>
             </div>
             <div className="flex items-center gap-2">

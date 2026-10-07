@@ -27,6 +27,8 @@ export default function BuilderLayout({
   });
 
   const isResultsPage = pathname?.endsWith("/results");
+  const isSharePage = pathname?.endsWith("/share");
+  const isCreatePage = !isResultsPage && !isSharePage;
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-gray-50">
@@ -55,9 +57,15 @@ export default function BuilderLayout({
           <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
             <Link 
               href={`/builder/${id}`}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${!isResultsPage ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"}`}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${isCreatePage ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"}`}
             >
               Create
+            </Link>
+            <Link 
+              href={`/builder/${id}/share`}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${isSharePage ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"}`}
+            >
+              Share
             </Link>
             <Link 
               href={`/builder/${id}/results`}
