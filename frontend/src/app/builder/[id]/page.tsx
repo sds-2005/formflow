@@ -102,27 +102,40 @@ export default function BuilderPage({
               <input
                 type="text"
                 className="w-full border-none text-2xl font-semibold text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-0"
-                value={activeQuestion.title}
+                defaultValue={activeQuestion.title}
                 placeholder="Your question here..."
-                onChange={(e) => {
-                  // In a real app, use controlled inputs with debounce for mutations
-                  // For now, this just visually updates if we tied it to state,
-                  // but React Query cache needs optimistic update.
+                onBlur={(e) => {
+                  if (e.target.value !== activeQuestion.title) {
+                    apiClient.questions.update(id, activeQuestion.id, { title: e.target.value }).then(() => {
+                      queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
+                    });
+                  }
                 }}
               />
               <input
                 type="text"
                 className="mt-2 w-full border-none text-lg text-gray-500 placeholder:text-gray-300 focus:outline-none focus:ring-0"
-                value={activeQuestion.description || ""}
+                defaultValue={activeQuestion.description || ""}
                 placeholder="Description (optional)"
-                onChange={() => {}}
+                onBlur={(e) => {
+                  if (e.target.value !== activeQuestion.description) {
+                    apiClient.questions.update(id, activeQuestion.id, { description: e.target.value }).then(() => {
+                      queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
+                    });
+                  }
+                }}
               />
               
               <div className="mt-8 pt-4 border-t border-gray-100">
                  {activeQuestion.type === "text" && (
                    <div className="text-xl text-gray-400 border-b border-gray-300 pb-2 w-full max-w-md">Type your answer here...</div>
                  )}
-                 {/* other types */}
+                 {activeQuestion.type === "email" && (
+                   <div className="text-xl text-gray-400 border-b border-gray-300 pb-2 w-full max-w-md">name@example.com</div>
+                 )}
+                 {activeQuestion.type === "number" && (
+                   <div className="text-xl text-gray-400 border-b border-gray-300 pb-2 w-full max-w-md">123</div>
+                 )}
               </div>
             </div>
           ) : (
@@ -143,17 +156,43 @@ export default function BuilderPage({
               <select 
                 className="w-full rounded-md border border-gray-300 p-2 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
                 value={activeQuestion.type}
-                onChange={() => {}}
+                onChange={(e) => {
+                  apiClient.questions.update(id, activeQuestion.id, { type: e.target.value }).then(() => {
+                    queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
+                  });
+                }}
               >
                 <option value="text">Short Text</option>
                 <option value="email">Email</option>
                 <option value="number">Number</option>
-                <option value="multiple_choice">Multiple Choice</option>
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <input type="checkbox" id="required" checked={activeQuestion.required} onChange={() => {}} className="rounded border-gray-300 text-black focus:ring-black" />
+              <input 
+                type="checkbox" 
+                id="required" 
+                checked={activeQuestion.required} 
+                onChange={(e) => {
+                  apiClient.questions.update(id, activeQuestion.id, { required: e.target.checked }).then(() => {
+                    queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
+                  });
+                }} 
+                className="rounded border-gray-300 text-black focus:ring-black" 
+              />
               <label htmlFor="required" className="text-sm font-medium text-gray-700">Required</label>
+            </div>
+            <div className="mt-8 pt-4 border-t border-gray-200">
+              <button 
+                onClick={() => {
+                  apiClient.questions.delete(id, activeQuestion.id).then(() => {
+                    queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
+                    setActiveQuestionId(null);
+                  });
+                }}
+                className="w-full rounded-md bg-red-50 py-2 text-sm font-medium text-red-600 hover:bg-red-100 transition-colors"
+              >
+                Delete Question
+              </button>
             </div>
           </div>
         ) : (
