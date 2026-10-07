@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build output
+frontend/.next/
+frontend/out/
+frontend/build/
+backend/__pycache__/
+backend/**/__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+backend/.venv/
+backend/venv/
+.venv/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing
+playwright-report/
+test-results/
+
+# Misc
+.vercel/
+.turbo/
