@@ -63,6 +63,7 @@ export const apiClient = {
     update: (id: string, data: { title?: string; status?: string }) => fetchProxy<any>(`forms/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     delete: (id: string) => fetchProxy<void>(`forms/${id}`, { method: "DELETE" }),
     publish: (id: string) => fetchProxy<any>(`forms/${id}/publish`, { method: "POST" }),
+    results: (id: string) => fetchProxy<{ submissions: any[] }>(`forms/${id}/results`),
   },
   questions: {
     list: (formId: string) => fetchProxy<any[]>(`forms/${formId}/questions`),
