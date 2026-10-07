@@ -7,30 +7,39 @@
 - Defined product spec, design system, interactions, architecture, database, API, security, testing, deployment
 - Created 6 ADRs for key decisions
 - Evaluation matrix maps all 7 criteria
-- **Awaiting design approval before implementation**
+- **Approved by user for implementation**
+
+### Milestone 1: Repository Tooling + Schema
+- Initialized frontend (Next.js) and backend (FastAPI) projects
+- Configured ESLint, Tailwind, Ruff, Mypy
+- Created SQLAlchemy models (Creator, Form, Question, Submission) and Alembic async migrations
+- Implemented database configuration (WAL, FK, busy_timeout)
+- Verified empty-database migration locally
+- Initial commit with tooling
 
 ## Current Milestone
 
-**Awaiting design approval** — no implementation started.
+### Milestone 2: Demo Session and Workspace Isolation
+- Setup FastAPI session dependencies
+- Implement Next.js BFF proxy
+- Create "Enter demo workspace" UI
 
 ## Next Milestone
 
-### Milestone 1: Repository Tooling + Schema
-- Initialize frontend (Next.js) and backend (FastAPI) projects
-- Configure TypeScript strict, ESLint, Prettier, Ruff, Mypy
-- Create SQLAlchemy models and Alembic migrations
-- Implement database configuration (WAL, FK, busy_timeout)
-- Verify empty-database migration
-- Initial commit with tooling
+### Milestone 3: Core Form Builder
+- Scaffold builder layout
+- Implement form creation and navigator
+- Implement question settings and canvas
 
 ## Known Defects
 
-None — no implementation yet.
+None yet.
 
 ## Blockers
 
-- Design approval required before implementation begins.
+None.
 
 ## Last Verified Checks
 
-- N/A — no code to check yet.
+- SQLite migration executed successfully.
+- Frontend pnpm install succeeded.

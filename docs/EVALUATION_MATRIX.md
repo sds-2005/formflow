@@ -59,12 +59,12 @@
 
 | Requirement | Implementation | Evidence | Status |
 |---|---|---|---|
-| Alembic migrations | `backend/migrations/` | Migration files | 🔲 |
+| Alembic migrations | `backend/migrations/` | Migration files | ✅ |
 | Documented schema | `docs/DATABASE.md` | This file | ✅ |
 | Mermaid ER diagram | `docs/DATABASE.md` §1 | ER diagram | ✅ |
-| Foreign keys | All relationships defined | Model definitions | 🔲 |
-| Constraints | CHECK, UNIQUE, NOT NULL | Model definitions | 🔲 |
-| Indexes | Per-table index definitions | Migration files | 🔲 |
+| Foreign keys | All relationships defined | Model definitions | ✅ |
+| Constraints | CHECK, UNIQUE, NOT NULL | Model definitions | ✅ |
+| Indexes | Per-table index definitions | Migration files | ✅ |
 | Transaction boundaries | Documented per operation | DATABASE.md §7 | ✅ |
 | Published-version handling | form_versions + snapshot | DATABASE.md §3 | ✅ |
 | Response-to-version relationships | submissions.form_version_id | DATABASE.md §1 | ✅ |
@@ -142,11 +142,11 @@
 | SQLite constraints | DATABASE.md §8 | DEPLOYMENT.md §3 | ✅ |
 | Security boundaries | SECURITY.md | Middleware | ✅ |
 | Testing strategy | TESTING.md | Test files | ✅ |
-| Major trade-offs | INTERVIEW_GUIDE.md | — | 🔲 |
-| Scale changes | INTERVIEW_GUIDE.md | — | 🔲 |
-| Excluded features | INTERVIEW_GUIDE.md | — | 🔲 |
+| Major trade-offs | INTERVIEW_GUIDE.md | — | ✅ |
+| Scale changes | INTERVIEW_GUIDE.md | — | ✅ |
+| Excluded features | INTERVIEW_GUIDE.md | — | ✅ |
 
 ---
 
-**Last updated:** Design phase  
-**Next update:** After Milestone 1 (Repository tooling + Schema)
+**Last updated:** After Milestone 1 (Repository tooling + Schema)  
+**Next update:** After Milestone 2 (Demo Session and Workspace Isolation)
