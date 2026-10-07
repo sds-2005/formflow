@@ -148,5 +148,5 @@
 
 ---
 
-**Last updated:** After Milestone 1 (Repository tooling + Schema)  
-**Next update:** After Milestone 2 (Demo Session and Workspace Isolation)
+**Last updated:** After Milestone 2 (Demo Session and Workspace Isolation)  
+**Next update:** After Milestone 3 (Core Form Builder)

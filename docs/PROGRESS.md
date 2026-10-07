@@ -24,12 +24,19 @@
 - Implement Next.js BFF proxy
 - Create "Enter demo workspace" UI
 
-## Next Milestone
+## Current Milestone
 
 ### Milestone 3: Core Form Builder
 - Scaffold builder layout
 - Implement form creation and navigator
 - Implement question settings and canvas
+
+## Next Milestone
+
+### Milestone 4: Form Publishing & API
+- Publish form API endpoint
+- Form versioning snapshot implementation
+- Public routing and SSR
 
 ## Known Defects
 

@@ -56,4 +56,18 @@ export const apiClient = {
     me: () => 
       fetchProxy<{ creator_id: string; display_name: string }>("auth/me"),
   },
+  forms: {
+    list: () => fetchProxy<{ forms: any[] }>("forms"),
+    get: (id: string) => fetchProxy<any>(`forms/${id}`),
+    create: (data: { title: string }) => fetchProxy<any>("forms", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: { title?: string; status?: string }) => fetchProxy<any>(`forms/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    delete: (id: string) => fetchProxy<void>(`forms/${id}`, { method: "DELETE" }),
+  },
+  questions: {
+    list: (formId: string) => fetchProxy<any[]>(`forms/${formId}/questions`),
+    create: (formId: string, data: any) => fetchProxy<any>(`forms/${formId}/questions`, { method: "POST", body: JSON.stringify(data) }),
+    update: (formId: string, questionId: string, data: any) => fetchProxy<any>(`forms/${formId}/questions/${questionId}`, { method: "PATCH", body: JSON.stringify(data) }),
+    delete: (formId: string, questionId: string) => fetchProxy<void>(`forms/${formId}/questions/${questionId}`, { method: "DELETE" }),
+    reorder: (formId: string, questionIds: string[]) => fetchProxy<any[]>(`forms/${formId}/questions/reorder`, { method: "PUT", body: JSON.stringify({ question_ids: questionIds }) }),
+  }
 };

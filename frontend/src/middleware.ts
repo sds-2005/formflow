@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  const isWorkspaceRoute = request.nextUrl.pathname.startsWith('/forms');
+  const isProtected = request.nextUrl.pathname.startsWith('/forms') || request.nextUrl.pathname.startsWith('/builder');
   const hasSession = request.cookies.has('formflow_session');
 
   // If trying to access protected workspace without session, redirect to landing
-  if (isWorkspaceRoute && !hasSession) {
+  if (isProtected && !hasSession) {
     return NextResponse.redirect(new URL('/', request.url));
   }
   
@@ -19,5 +19,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/forms/:path*'],
+  matcher: ['/', '/forms/:path*', '/builder/:path*'],
 };
