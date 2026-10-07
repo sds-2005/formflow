@@ -37,12 +37,34 @@ async def submit_form(
         idempotency_key=str(uuid.uuid4())
     )
     
+    # Validate all required questions are present
+    for q_id, q_data in question_map.items():
+        val = data.answers.get(q_id)
+        if q_data.get("required") and (val is None or str(val).strip() == ""):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Required answer missing for question {q_id}")
+
     for q_id, value in data.answers.items():
-        q_type = question_map.get(q_id, {}).get("type", "text")
+        if q_id not in question_map:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown question ID: {q_id}")
+            
+        q_type = question_map[q_id].get("type", "text")
+        
+        val_str = str(value) if value is not None else ""
+        if val_str.strip():
+            if q_type == "email" and ("@" not in val_str or "." not in val_str):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email format")
+            elif q_type == "number":
+                try:
+                    float(val_str)
+                except ValueError:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid number format")
+            elif q_type == "boolean" and val_str not in ("Yes", "No"):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid yes/no value")
+        
         ans = Answer(
             question_id=q_id,
             question_type=q_type,
-            value_text=str(value) if value else None
+            value_text=val_str if val_str.strip() else None
         )
         submission.answers.append(ans)
     

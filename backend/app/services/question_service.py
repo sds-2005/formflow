@@ -78,6 +78,8 @@ class QuestionService:
         if not q:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question not found")
             
+        if data.type is not None:
+            q.type = data.type
         if data.title is not None:
             q.title = data.title
         if data.description is not None:

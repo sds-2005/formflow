@@ -17,6 +17,7 @@ class QuestionCreate(BaseModel):
     options: Optional[List[QuestionOptionCreate]] = None
 
 class QuestionUpdate(BaseModel):
+    type: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
     required: Optional[bool] = None

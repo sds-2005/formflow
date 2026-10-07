@@ -11,16 +11,47 @@ export default function RespondentFlow({ form }: { form: any }) {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [direction, setDirection] = useState(1);
 
+  const [error, setError] = useState<string | null>(null);
+
   const questions = form.questions || [];
   const currentQuestion = questions[currentIndex];
+
+  const validateAnswer = (question: any, value: any) => {
+    if (question.required && (!value || String(value).trim() === "")) {
+      return "This field is required";
+    }
+    if (!value || String(value).trim() === "") return null; // If not required and empty, it's valid
+    
+    if (question.type === "email") {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value))) return "Please enter a valid email address";
+    }
+    if (question.type === "url") {
+      try {
+        new URL(String(value));
+      } catch {
+        return "Please enter a valid URL (e.g. https://example.com)";
+      }
+    }
+    if (question.type === "number") {
+      if (isNaN(Number(value))) return "Please enter a valid number";
+    }
+    if (question.type === "boolean") {
+      if (value !== "Yes" && value !== "No") return "Please select Yes or No";
+    }
+    return null;
+  };
 
   const handleNext = () => {
     if (isSubmitting || isSubmitted) return;
     
-    if (currentQuestion.required && !answers[currentQuestion.id]) {
-      // In a real app, show error animation
+    const val = answers[currentQuestion.id];
+    const validationError = validateAnswer(currentQuestion, val);
+    if (validationError) {
+      setError(validationError);
       return;
     }
+    
+    setError(null);
     
     if (currentIndex < questions.length - 1) {
       setDirection(1);
@@ -184,18 +215,32 @@ export default function RespondentFlow({ form }: { form: any }) {
                     {currentQuestion.type === "long_text" && (
                        <p className="mt-2 text-sm text-gray-400">Press Cmd/Ctrl + Enter to submit</p>
                     )}
+                    
+                    <AnimatePresence>
+                      {error && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          className="mt-4 flex max-w-xl items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-600 shadow-sm"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                          <span className="text-sm font-medium">{error}</span>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                   
                   <div className="mt-8 flex items-center gap-4">
                     <button
                       onClick={handleNext}
-                      disabled={isSubmitting || (currentQuestion.required && !answers[currentQuestion.id])}
+                      disabled={isSubmitting}
                       className="rounded-md bg-blue-600 px-6 py-2.5 font-bold text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300"
                     >
                       {currentIndex === questions.length - 1 ? (isSubmitting ? "Submitting..." : "Submit") : "OK"}
                     </button>
-                    {currentIndex < questions.length - 1 && (
-                      <span className="text-sm font-medium text-gray-400">press Enter ↵</span>
+                    {currentIndex < questions.length - 1 && currentQuestion.type !== "boolean" && (
+                      <span className="text-sm font-medium text-gray-400">press <strong>Enter ↵</strong></span>
                     )}
                   </div>
                 </div>
