@@ -36,7 +36,7 @@ Internet → Vercel (Next.js) → Railway (FastAPI + SQLite)
 
 ### Configuration
 - Runtime: Python 3.12+ (Nixpacks)
-- Start command: `alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1`
+- Start command: `alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1`
 - Root directory: `backend`
 - Persistent volume: `/data` (for SQLite database)
 
@@ -102,14 +102,13 @@ uv run python -m app.seed
 ### Behavior
 - **Idempotent:** checks for existing data before creating
 - **Non-destructive:** never drops or truncates tables
-- **Manual only:** never runs automatically on startup
+- **Automatic for this demo deployment:** runs idempotently after migrations on startup
 - Creates demo forms with sample responses for evaluation
 
 ### Production Seeding
 1. Deploy and verify migrations
-2. SSH/exec into Railway container
-3. Run seed command once
-4. Verify via the application
+2. The Railway start command runs the idempotent seed
+3. Verify the sample forms and responses via the application
 
 ## 7. Local Development
 
@@ -162,7 +161,7 @@ PROXY_SECRET=dev-secret-change-in-production
 - `GET /api/v1/health/ready` → database connectivity check
 
 ### Railway Configuration
-- Health check path: `/api/v1/health/ready`
+- Health check path: `/api/v1/health`
 - Health check interval: 30s
 - Restart on consecutive failures
 
