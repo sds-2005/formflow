@@ -45,7 +45,7 @@ export async function ANY(req: NextRequest, { params }: { params: Promise<{ path
 
     // Special handling for auth/demo route: extract token and set HttpOnly cookie
     if (path === "auth/demo" && response.status === 200 && typeof parsedData === "object" && parsedData !== null && "token" in parsedData) {
-      const { token, ...rest } = parsedData as any;
+      const { token, ...rest } = parsedData as Record<string, unknown> & { token: string };
       
       const res = NextResponse.json(rest, { status: 200 });
       
@@ -64,7 +64,7 @@ export async function ANY(req: NextRequest, { params }: { params: Promise<{ path
     const res = NextResponse.json(parsedData, { status: response.status });
     
     return res;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Proxy error:", error);
     return NextResponse.json(
       { detail: "Internal Server Error (Proxy)" },

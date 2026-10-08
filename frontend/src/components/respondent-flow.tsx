@@ -1,283 +1,60 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { apiClient } from "@/lib/api-client";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import Link from "next/link";
+import { AnswerValue, apiClient, PublicForm, Question } from "@/lib/api-client";
 
-export default function RespondentFlow({ form, isPreview = false }: { form: any; isPreview?: boolean }) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+function validate(question: Question, value: AnswerValue | undefined): string | null {
+  const empty = value === undefined || value === null || value === "";
+  if (question.required && empty) return "This question is required";
+  if (empty) return null;
+  if (question.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value))) return "Please enter a valid email address";
+  if (question.type === "number") {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "Please enter a valid number";
+    if (question.settings.min !== undefined && question.settings.min !== "" && number < Number(question.settings.min)) return `Enter ${question.settings.min} or more`;
+    if (question.settings.max !== undefined && question.settings.max !== "" && number > Number(question.settings.max)) return `Enter ${question.settings.max} or less`;
+  }
+  return null;
+}
+
+function QuestionControl({ question, value, onChange, onAdvance }: { question: Question; value: AnswerValue | undefined; onChange: (value: AnswerValue) => void; onAdvance: (value?: AnswerValue) => void }) {
+  const options = useMemo(() => question.options ?? [], [question.options]);
+  const [focusedOption, setFocusedOption] = useState(Math.max(0, options.findIndex((option) => option.id === value)));
+  useEffect(() => setFocusedOption(Math.max(0, options.findIndex((option) => option.id === value))), [options, value]);
+  const commonInput = "w-full border-b-2 border-white/35 bg-transparent py-3 text-2xl text-white outline-none placeholder:text-white/40 focus:border-white md:text-3xl";
+  if (question.type === "long_text") return <><textarea autoFocus rows={4} value={String(value ?? "")} onChange={(event) => onChange(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); onAdvance(); } }} placeholder="Type your answer here…" className={`${commonInput} resize-none`} /><p className="mt-2 text-sm text-white/50">Press Ctrl/⌘ + Enter to continue</p></>;
+  if (question.type === "multiple_choice") return <div role="radiogroup" aria-label={question.title} className="space-y-2" onKeyDown={(event) => { if (event.key === "ArrowDown" || event.key === "ArrowRight") { event.preventDefault(); setFocusedOption((focusedOption + 1) % options.length); } if (event.key === "ArrowUp" || event.key === "ArrowLeft") { event.preventDefault(); setFocusedOption((focusedOption - 1 + options.length) % options.length); } if (event.key === "Enter" && options[focusedOption]) onAdvance(options[focusedOption].id); if (/^[a-z]$/i.test(event.key)) { const index = event.key.toUpperCase().charCodeAt(0) - 65; if (options[index]) onAdvance(options[index].id); } }}>{options.map((option, index) => <button autoFocus={index === focusedOption} type="button" role="radio" aria-checked={value === option.id} key={option.id} onFocus={() => setFocusedOption(index)} onClick={() => onAdvance(option.id)} className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${value === option.id ? "border-white bg-white text-[#231f3a]" : index === focusedOption ? "border-white bg-white/15" : "border-white/30 bg-white/5 hover:bg-white/10"}`}><span className="grid h-7 w-7 place-items-center rounded border border-current text-xs font-bold">{String.fromCharCode(65 + index)}</span>{option.label}</button>)}</div>;
+  if (question.type === "dropdown") return <select autoFocus value={String(value ?? "")} onChange={(event) => onChange(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") onAdvance(); }} className="w-full rounded-xl border border-white/30 bg-[#302a52] px-4 py-4 text-lg text-white outline-none focus:border-white"><option value="">Choose an option…</option>{options.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select>;
+  if (question.type === "yes_no") return <div className="flex flex-wrap gap-3"><button autoFocus type="button" onClick={() => onAdvance(true)} className={`rounded-xl border px-7 py-4 text-lg ${value === true ? "bg-white text-[#231f3a]" : "border-white/30 bg-white/5"}`}><span className="mr-3 rounded border border-current px-2 py-1 text-xs">Y</span>Yes</button><button type="button" onClick={() => onAdvance(false)} className={`rounded-xl border px-7 py-4 text-lg ${value === false ? "bg-white text-[#231f3a]" : "border-white/30 bg-white/5"}`}><span className="mr-3 rounded border border-current px-2 py-1 text-xs">N</span>No</button></div>;
+  if (question.type === "rating") { const max = Number(question.settings.max ?? 5); return <div className="flex flex-wrap gap-2">{Array.from({ length: max }, (_, index) => index + 1).map((rating) => <button autoFocus={rating === 1} type="button" key={rating} onClick={() => onAdvance(rating)} className={`grid h-12 min-w-12 place-items-center rounded-lg border px-3 text-lg font-semibold ${value === rating ? "bg-white text-[#231f3a]" : "border-white/30 bg-white/5 hover:bg-white/10"}`}>{rating}</button>)}</div>; }
+  return <input autoFocus type={question.type === "email" ? "email" : question.type === "number" ? "number" : "text"} inputMode={question.type === "number" ? "decimal" : undefined} value={String(value ?? "")} onChange={(event) => onChange(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); onAdvance(); } }} placeholder={question.type === "email" ? "name@example.com" : question.type === "number" ? "Type a number…" : "Type your answer here…"} className={commonInput} />;
+}
+
+export default function RespondentFlow({ form, isPreview = false }: { form: PublicForm; isPreview?: boolean }) {
+  const questions = useMemo(() => form.questions ?? [], [form.questions]);
+  const [index, setIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
+  const [direction, setDirection] = useState(1);
+  const [error, setError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [direction, setDirection] = useState(1);
-
-  const [error, setError] = useState<string | null>(null);
-
-  const questions = form.questions || [];
-  const currentQuestion = questions[currentIndex];
-
-  const validateAnswer = (question: any, value: any) => {
-    if (question.required && (!value || String(value).trim() === "")) {
-      return "This field is required";
-    }
-    if (!value || String(value).trim() === "") return null; // If not required and empty, it's valid
-    
-    if (question.type === "email") {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value))) return "Please enter a valid email address";
-    }
-    if (question.type === "url") {
-      try {
-        new URL(String(value));
-      } catch {
-        return "Please enter a valid URL (e.g. https://example.com)";
-      }
-    }
-    if (question.type === "number") {
-      if (isNaN(Number(value))) return "Please enter a valid number";
-    }
-    if (question.type === "boolean") {
-      if (value !== "Yes" && value !== "No") return "Please select Yes or No";
-    }
-    return null;
-  };
-
-  const handleNext = (overrideValue?: string) => {
-    if (isSubmitting || isSubmitted) return;
-    
-    const val = overrideValue !== undefined ? overrideValue : answers[currentQuestion.id];
-    const newAnswers = { ...answers };
-    if (overrideValue !== undefined) {
-      newAnswers[currentQuestion.id] = overrideValue;
-      setAnswers(newAnswers);
-    }
-    
-    const validationError = validateAnswer(currentQuestion, val);
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-    
-    setError(null);
-    
-    if (currentIndex < questions.length - 1) {
-      setDirection(1);
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      submitForm(newAnswers);
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentIndex > 0 && !isSubmitting) {
-      setDirection(-1);
-      setCurrentIndex((prev) => prev - 1);
-    }
-  };
-
-  const submitForm = async (finalAnswers: any = answers) => {
-    if (isSubmitting || isSubmitted) return;
-    setIsSubmitting(true);
-    
-    if (isPreview) {
-      setTimeout(() => {
-        setIsSubmitted(true);
-      }, 600);
-      return;
-    }
-    
-    try {
-      await apiClient.public.submit(form.slug, finalAnswers);
-      setIsSubmitted(true);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to submit form.");
-      setIsSubmitting(false);
-    }
-  };
-
-  if (isSubmitted) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-gray-50 text-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md"
-        >
-          <h1 className="mb-4 text-4xl font-bold text-gray-900">{isPreview ? "Preview Complete" : "Thank you!"}</h1>
-          <p className="text-xl text-gray-500">{isPreview ? "This was just a preview." : "Your response has been recorded."}</p>
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (questions.length === 0) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-gray-50 text-center">
-        <p className="text-xl text-gray-500">This form has no questions.</p>
-      </div>
-    );
-  }
-
-  const variants = {
-    enter: (direction: number) => ({
-      y: direction > 0 ? 100 : -100,
-      opacity: 0,
-    }),
-    center: {
-      y: 0,
-      opacity: 1,
-    },
-    exit: (direction: number) => ({
-      y: direction > 0 ? -100 : 100,
-      opacity: 0,
-    }),
-  };
-
-  return (
-    <div className="relative flex h-screen w-full flex-col overflow-hidden bg-white text-gray-900 selection:bg-gray-200">
-      <div className="absolute top-0 left-0 w-full h-1 bg-gray-100">
-        <div 
-          className="h-full bg-black transition-all duration-300" 
-          style={{ width: `${((currentIndex) / questions.length) * 100}%` }}
-        />
-      </div>
-
-      <div className="flex flex-1 items-center justify-center px-4 md:px-8">
-        <div className="w-full max-w-3xl">
-          <AnimatePresence mode="wait" custom={direction}>
-            <motion.div
-              key={currentIndex}
-              custom={direction}
-              variants={variants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="w-full"
-            >
-              <div className="flex items-start">
-                <div className="mr-4 mt-1 flex text-xl font-bold text-blue-600">
-                  {currentIndex + 1}
-                  <span className="ml-1 mt-1 text-base text-gray-300">→</span>
-                </div>
-                <div className="flex-1">
-                  <h2 className="mb-2 text-2xl font-bold md:text-4xl">
-                    {currentQuestion.title}
-                    {currentQuestion.required && <span className="ml-2 text-red-500">*</span>}
-                  </h2>
-                  {currentQuestion.description && (
-                    <p className="mb-8 text-lg text-gray-500 md:text-xl">
-                      {currentQuestion.description}
-                    </p>
-                  )}
-
-                  <div className="mt-8">
-                    {currentQuestion.type === "long_text" ? (
-                      <textarea
-                        autoFocus
-                        rows={4}
-                        className="w-full resize-none border-b-2 border-blue-200 bg-transparent py-2 text-2xl text-gray-900 focus:border-blue-600 focus:outline-none"
-                        placeholder="Type your answer here..."
-                        value={answers[currentQuestion.id] || ""}
-                        onChange={(e) => setAnswers({ ...answers, [currentQuestion.id]: e.target.value })}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                            e.preventDefault();
-                            handleNext();
-                          }
-                        }}
-                      />
-                    ) : currentQuestion.type === "boolean" ? (
-                      <div className="flex gap-4">
-                        <button
-                          onClick={() => {
-                            handleNext("Yes");
-                          }}
-                          className={`flex items-center rounded-lg border-2 px-8 py-3 text-2xl font-medium transition-all ${answers[currentQuestion.id] === "Yes" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"}`}
-                        >
-                          <span className="mr-3 flex h-6 w-6 items-center justify-center rounded border border-gray-300 bg-white text-sm">Y</span>
-                          Yes
-                        </button>
-                        <button
-                          onClick={() => {
-                            handleNext("No");
-                          }}
-                          className={`flex items-center rounded-lg border-2 px-8 py-3 text-2xl font-medium transition-all ${answers[currentQuestion.id] === "No" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"}`}
-                        >
-                          <span className="mr-3 flex h-6 w-6 items-center justify-center rounded border border-gray-300 bg-white text-sm">N</span>
-                          No
-                        </button>
-                      </div>
-                    ) : (
-                      <input
-                        autoFocus
-                        type={currentQuestion.type === "phone" ? "tel" : currentQuestion.type === "url" ? "url" : currentQuestion.type === "email" ? "email" : currentQuestion.type === "number" ? "number" : "text"}
-                        className="w-full border-b-2 border-blue-200 bg-transparent py-2 text-2xl text-gray-900 transition-colors focus:border-blue-600 focus:outline-none"
-                        placeholder={currentQuestion.type === "email" ? "name@example.com" : currentQuestion.type === "url" ? "https://" : currentQuestion.type === "phone" ? "(555) 555-5555" : "Type your answer here..."}
-                        value={answers[currentQuestion.id] || ""}
-                        onChange={(e) => setAnswers({ ...answers, [currentQuestion.id]: e.target.value })}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleNext();
-                          }
-                        }}
-                      />
-                    )}
-                    {currentQuestion.type === "long_text" && (
-                       <p className="mt-2 text-sm text-gray-400">Press Cmd/Ctrl + Enter to submit</p>
-                    )}
-                    
-                    <AnimatePresence>
-                      {error && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0 }}
-                          className="mt-4 flex max-w-xl items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-600 shadow-sm"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
-                          <span className="text-sm font-medium">{error}</span>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                  
-                  <div className="mt-8 flex items-center gap-4">
-                    <button
-                      onClick={() => handleNext()}
-                      disabled={isSubmitting}
-                      className="rounded-md bg-blue-600 px-6 py-2.5 font-bold text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300"
-                    >
-                      {currentIndex === questions.length - 1 ? (isSubmitting ? "Submitting..." : "Submit") : "OK"}
-                    </button>
-                    {currentIndex < questions.length - 1 && currentQuestion.type !== "boolean" && (
-                      <span className="text-sm font-medium text-gray-400">press <strong>Enter ↵</strong></span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
-
-      <div className="absolute bottom-6 right-6 flex gap-2">
-        <button
-          onClick={handlePrev}
-          disabled={currentIndex === 0 || isSubmitting}
-          className="flex h-10 w-10 items-center justify-center rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-30"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
-        </button>
-        <button
-          onClick={() => handleNext()}
-          disabled={isSubmitting}
-          className="flex h-10 w-10 items-center justify-center rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-30"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-        </button>
-      </div>
-    </div>
-  );
+  const keyRef = useRef(globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
+  const reduceMotion = useReducedMotion();
+  const question = questions[index];
+  const submit = async (finalAnswers: Record<string, AnswerValue>) => { setIsSubmitting(true); setSubmitError(null); if (isPreview) { setIsSubmitted(true); return; } try { await apiClient.public.submit(form.slug, finalAnswers, form.version_id, keyRef.current); setIsSubmitted(true); } catch (caught) { setSubmitError(caught instanceof Error ? caught.message : "Your response could not be submitted. Please try again."); setIsSubmitting(false); } };
+  const next = (override?: AnswerValue) => { if (!question || isSubmitting) return; const value = override !== undefined ? override : answers[question.id]; const validationError = validate(question, value); if (validationError) { setError(validationError); return; } const nextAnswers = override !== undefined ? { ...answers, [question.id]: override } : answers; if (override !== undefined) setAnswers(nextAnswers); setError(null); if (index === questions.length - 1) void submit(nextAnswers); else { setDirection(1); setIndex(index + 1); } };
+  const previous = () => { if (index > 0 && !isSubmitting) { setError(null); setDirection(-1); setIndex(index - 1); } };
+  useEffect(() => { const handler = (event: KeyboardEvent) => { if (event.key === "ArrowUp" && event.altKey) previous(); }; window.addEventListener("keydown", handler); return () => window.removeEventListener("keydown", handler); });
+  if (isSubmitted) return <main className="grid min-h-screen place-items-center bg-[#231f3a] p-6 text-center text-white"><motion.div initial={reduceMotion ? false : { opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }}><div className="mx-auto mb-6 grid h-16 w-16 place-items-center rounded-full bg-white text-3xl text-[#231f3a]">✓</div><h1 className="text-4xl font-semibold">{isPreview ? "That’s the end of the preview" : "Thank you!"}</h1><p className="mt-3 text-lg text-white/65">{isPreview ? "Answers weren’t submitted." : "Your response has been recorded."}</p>{!isPreview && <Link href="/" className="mt-8 inline-block rounded-lg bg-white px-5 py-3 font-semibold text-[#231f3a]">Create your own form</Link>}</motion.div></main>;
+  if (!question) return <main className="grid min-h-screen place-items-center bg-[#231f3a] p-6 text-center text-white"><div><h1 className="text-2xl font-semibold">This form isn’t ready yet</h1><p className="mt-2 text-white/60">The creator hasn’t added any questions.</p></div></main>;
+  const progress = ((index + 1) / questions.length) * 100;
+  return <main className="relative flex min-h-screen overflow-hidden bg-[#231f3a] text-white selection:bg-white/20">
+    <div aria-label={`${index + 1} of ${questions.length}`} className="absolute inset-x-0 top-0 h-1 bg-white/15"><div className="h-full bg-[#c8b8ff] transition-[width] duration-300" style={{ width: `${progress}%` }} /></div>
+    {isPreview && <div className="absolute left-4 top-4 z-10 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold backdrop-blur">PREVIEW</div>}
+    <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center px-6 py-20 md:px-10"><AnimatePresence mode="wait" custom={direction}><motion.section key={question.id} custom={direction} initial={reduceMotion ? false : { y: direction > 0 ? 55 : -55, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={reduceMotion ? undefined : { y: direction > 0 ? -55 : 55, opacity: 0 }} transition={{ duration: reduceMotion ? 0 : 0.25, ease: "easeOut" }} className="w-full"><div className="flex gap-3 md:gap-5"><span className="pt-2 text-sm font-semibold text-[#c8b8ff]">{index + 1} →</span><div className="min-w-0 flex-1"><h1 className="text-2xl font-medium leading-tight md:text-4xl">{question.title}{question.required && <span aria-label="required" className="ml-2 text-[#c8b8ff]">*</span>}</h1>{question.description && <p className="mt-3 text-lg text-white/60">{question.description}</p>}<div className="mt-8"><QuestionControl question={question} value={answers[question.id]} onChange={(value) => { setAnswers({ ...answers, [question.id]: value }); setError(null); }} onAdvance={next} /></div>{error && <p role="alert" className="mt-4 inline-flex rounded-lg bg-red-400/15 px-3 py-2 text-sm text-red-200">⚠ {error}</p>}{submitError && <div role="alert" className="mt-4 rounded-lg bg-red-400/15 p-3 text-sm text-red-100">{submitError} <button onClick={() => void submit(answers)} className="ml-2 underline">Retry</button></div>}<div className="mt-7 flex items-center gap-3"><button onClick={() => next()} disabled={isSubmitting} className="rounded-lg bg-white px-5 py-2.5 font-semibold text-[#231f3a] shadow disabled:opacity-50">{index === questions.length - 1 ? isSubmitting ? "Submitting…" : isPreview ? "Finish preview" : "Submit" : "OK"}</button>{question.type !== "long_text" && !["multiple_choice", "yes_no", "rating"].includes(question.type) && <span className="text-xs text-white/45">press Enter ↵</span>}</div></div></div></motion.section></AnimatePresence></div>
+    <div className="fixed bottom-5 right-5 flex overflow-hidden rounded-lg border border-white/20 bg-white/10 backdrop-blur"><button aria-label="Previous question" onClick={previous} disabled={index === 0 || isSubmitting} className="grid h-10 w-11 place-items-center border-r border-white/20 disabled:opacity-30">↑</button><button aria-label="Next question" onClick={() => next()} disabled={isSubmitting} className="grid h-10 w-11 place-items-center disabled:opacity-30">↓</button></div>
+  </main>;
 }

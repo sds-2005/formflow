@@ -1,23 +1,28 @@
-from pydantic import BaseModel
-from typing import List, Optional
+from typing import Any
+
+from pydantic import BaseModel, Field
+
 
 class PublicOption(BaseModel):
     id: str
     label: str
     position: int
 
+
 class PublicQuestion(BaseModel):
     id: str
     type: str
     title: str
-    description: Optional[str]
+    description: str | None
     required: bool
     position: int
-    settings: str
-    options: List[PublicOption] = []
+    settings: dict[str, Any] = Field(default_factory=dict)
+    options: list[PublicOption] = Field(default_factory=list)
+
 
 class PublicForm(BaseModel):
     id: str
     title: str
     slug: str
-    questions: List[PublicQuestion]
+    version_id: str
+    questions: list[PublicQuestion]

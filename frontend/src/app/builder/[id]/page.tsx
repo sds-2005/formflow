@@ -1,232 +1,103 @@
 "use client";
 
-import { useState, use } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { use, useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  apiClient,
+  Question,
+  QuestionPayload,
+  QuestionType,
+} from "@/lib/api-client";
 
-export default function BuilderPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+const QUESTION_TYPES: Array<{ type: QuestionType; label: string; icon: string }> = [
+  { type: "short_text", label: "Short text", icon: "Aa" },
+  { type: "long_text", label: "Long text", icon: "¶" },
+  { type: "multiple_choice", label: "Multiple choice", icon: "◉" },
+  { type: "dropdown", label: "Dropdown", icon: "⌄" },
+  { type: "email", label: "Email", icon: "@" },
+  { type: "number", label: "Number", icon: "#" },
+  { type: "yes_no", label: "Yes / No", icon: "Y/N" },
+  { type: "rating", label: "Rating", icon: "★" },
+];
+
+function AnswerPreview({ question }: { question: Question }) {
+  if (question.type === "multiple_choice") {
+    return <div className="space-y-2">{question.options.map((option, index) => <div key={option.id} className="flex items-center gap-3 rounded-xl border border-stone-300 bg-white px-4 py-3 text-stone-700"><span className="grid h-7 w-7 place-items-center rounded border border-stone-300 text-xs font-semibold">{String.fromCharCode(65 + index)}</span>{option.label}</div>)}</div>;
+  }
+  if (question.type === "dropdown") return <div className="rounded-xl border border-stone-300 bg-white px-4 py-3 text-stone-500">Choose an option <span className="float-right">⌄</span></div>;
+  if (question.type === "yes_no") return <div className="flex gap-3"><div className="rounded-xl border border-stone-300 bg-white px-6 py-3">Y&nbsp;&nbsp; Yes</div><div className="rounded-xl border border-stone-300 bg-white px-6 py-3">N&nbsp;&nbsp; No</div></div>;
+  if (question.type === "rating") return <div className="flex flex-wrap gap-2">{Array.from({ length: Number(question.settings.max ?? 5) }, (_, index) => <span key={index} className="grid h-11 w-11 place-items-center rounded-lg border border-stone-300 bg-white text-lg">{index + 1}</span>)}</div>;
+  return <div className="border-b-2 border-stone-400 pb-2 text-2xl text-stone-400">{question.type === "email" ? "name@example.com" : question.type === "number" ? "Type a number…" : "Type your answer here…"}</div>;
+}
+
+function Inspector({ question, onSave, onDelete, onDuplicate }: { question: Question; onSave: (data: QuestionPayload) => void; onDelete: () => void; onDuplicate: () => void }) {
+  const [options, setOptions] = useState<Array<{ id?: string; label: string }>>(question.options.map(({ id, label }) => ({ id, label })));
+  useEffect(() => setOptions(question.options.map(({ id, label }) => ({ id, label }))), [question]);
+  const isChoice = question.type === "multiple_choice" || question.type === "dropdown";
+  const saveOptions = (next: typeof options) => { setOptions(next); onSave({ options: next }); };
+  const updateNumericSetting = (key: "min" | "max", rawValue: string) => {
+    const settings = { ...question.settings };
+    if (rawValue === "") delete settings[key];
+    else settings[key] = Number(rawValue);
+    onSave({ settings });
+  };
+  return <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-stone-200 bg-white p-5 lg:block">
+    <h2 className="mb-5 text-sm font-semibold uppercase tracking-wider text-stone-500">Question settings</h2>
+    <label className="mb-2 block text-sm font-medium">Type</label>
+    <select className="mb-5 w-full rounded-lg border border-stone-300 bg-white p-3 text-sm" value={question.type} onChange={(event) => {
+      const type = event.target.value as QuestionType;
+      const becomesChoice = type === "multiple_choice" || type === "dropdown";
+      if (isChoice && !becomesChoice && options.length && !window.confirm("Changing type will remove your choices. Continue?")) return;
+      onSave({ type, options: becomesChoice && !isChoice ? [{ label: "Option 1" }, { label: "Option 2" }] : isChoice && !becomesChoice ? [] : undefined });
+    }}>
+      {QUESTION_TYPES.map((item) => <option key={item.type} value={item.type}>{item.label}</option>)}
+    </select>
+    <label className="mb-5 flex cursor-pointer items-center justify-between rounded-lg border border-stone-200 p-3 text-sm font-medium">
+      Required
+      <input aria-label="Required question" type="checkbox" checked={question.required} onChange={(event) => onSave({ required: event.target.checked })} className="h-5 w-5 accent-black" />
+    </label>
+    {isChoice && <div className="mb-6">
+      <div className="mb-2 flex items-center justify-between"><span className="text-sm font-medium">Options</span><button onClick={() => saveOptions([...options, { label: `Option ${options.length + 1}` }])} className="text-sm font-semibold">+ Add</button></div>
+      <div className="space-y-2">{options.map((option, index) => <div key={option.id ?? index} className="flex gap-2"><input aria-label={`Option ${index + 1}`} value={option.label} onChange={(event) => setOptions(options.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item))} onBlur={() => option.label.trim() && onSave({ options })} className="min-w-0 flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm" /><button aria-label={`Delete option ${index + 1}`} disabled={options.length === 1} onClick={() => saveOptions(options.filter((_, itemIndex) => itemIndex !== index))} className="px-2 text-stone-400 hover:text-red-600 disabled:opacity-30">×</button></div>)}</div>
+    </div>}
+    {question.type === "rating" && <label className="mb-5 block text-sm font-medium">Rating scale<select value={Number(question.settings.max ?? 5)} onChange={(event) => onSave({ settings: { ...question.settings, max: Number(event.target.value) } })} className="mt-2 w-full rounded-lg border border-stone-300 p-3"><option value={5}>1 to 5</option><option value={10}>1 to 10</option></select></label>}
+    {question.type === "number" && <div className="mb-5 grid grid-cols-2 gap-2"><label className="text-xs text-stone-500">Minimum<input type="number" value={String(question.settings.min ?? "")} onChange={(event) => updateNumericSetting("min", event.target.value)} className="mt-1 w-full rounded-lg border border-stone-300 p-2 text-sm" /></label><label className="text-xs text-stone-500">Maximum<input type="number" value={String(question.settings.max ?? "")} onChange={(event) => updateNumericSetting("max", event.target.value)} className="mt-1 w-full rounded-lg border border-stone-300 p-2 text-sm" /></label></div>}
+    <div className="mb-6 space-y-2 rounded-xl bg-stone-50 p-4"><p className="text-sm font-medium">Theme</p><p className="text-xs text-stone-500">Custom colors and fonts — Coming soon</p><p className="pt-2 text-sm font-medium">Thank-you screen</p><p className="text-xs text-stone-500">Custom endings — Coming soon</p></div>
+    <div className="grid grid-cols-2 gap-2 border-t border-stone-200 pt-4"><button onClick={onDuplicate} className="rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium">Duplicate</button><button onClick={onDelete} className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">Delete</button></div>
+  </aside>;
+}
+
+export default function BuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const queryClient = useQueryClient();
-  const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
-
-  const { data: form, isLoading: formLoading } = useQuery({
-    queryKey: ["forms", id],
-    queryFn: () => apiClient.forms.get(id),
-  });
-
-  const { data: questions, isLoading: questionsLoading } = useQuery({
-    queryKey: ["forms", id, "questions"],
-    queryFn: () => apiClient.questions.list(id),
-  });
-
-  const createQuestion = useMutation({
-    mutationFn: (type: string) => apiClient.questions.create(id, { type, title: `New ${type} question` }),
-    onSuccess: (newQ) => {
-      queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
-      setActiveQuestionId(newQ.id);
-    },
-  });
-
-  if (formLoading || questionsLoading) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-black"></div>
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<"saved" | "saving" | "error">("saved");
+  const formQuery = useQuery({ queryKey: ["forms", id], queryFn: () => apiClient.forms.get(id) });
+  const questionsQuery = useQuery({ queryKey: ["forms", id, "questions"], queryFn: () => apiClient.questions.list(id) });
+  const questions = useMemo(() => questionsQuery.data ?? [], [questionsQuery.data]);
+  useEffect(() => { if (!activeId && questions[0]) setActiveId(questions[0].id); }, [activeId, questions]);
+  const activeQuestion = questions.find((question) => question.id === activeId) ?? null;
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
+  const save = async (questionId: string, payload: QuestionPayload) => { setSaveState("saving"); try { await apiClient.questions.update(id, questionId, payload); await refresh(); setSaveState("saved"); } catch { setSaveState("error"); } };
+  const addMutation = useMutation({ mutationFn: (type: QuestionType) => apiClient.questions.create(id, { type, title: "Untitled question", settings: type === "rating" ? { max: 5 } : {} }), onSuccess: async (question) => { await refresh(); setActiveId(question.id); setShowPicker(false); } });
+  const reorder = async (sourceId: string, targetId: string) => { if (sourceId === targetId) return; const next = [...questions]; const from = next.findIndex((item) => item.id === sourceId); const to = next.findIndex((item) => item.id === targetId); const [moved] = next.splice(from, 1); next.splice(to, 0, moved); queryClient.setQueryData(["forms", id, "questions"], next); await apiClient.questions.reorder(id, next.map((item) => item.id)); await refresh(); };
+  const moveByKeyboard = (questionId: string, delta: number) => { const index = questions.findIndex((item) => item.id === questionId); const target = questions[index + delta]; if (target) void reorder(questionId, target.id); };
+  if (formQuery.isLoading || questionsQuery.isLoading) return <div className="grid h-full w-full place-items-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-stone-200 border-t-black" /></div>;
+  if (formQuery.isError || questionsQuery.isError) return <div className="grid h-full w-full place-items-center text-center"><div><h2 className="text-xl font-semibold">Couldn&apos;t load this form</h2><button onClick={() => { void formQuery.refetch(); void questionsQuery.refetch(); }} className="mt-4 rounded-lg bg-black px-4 py-2 text-white">Retry</button></div></div>;
+  return <div className="flex h-full w-full min-w-0">
+    <aside className="hidden w-64 shrink-0 flex-col border-r border-stone-200 bg-white md:flex">
+      <div className="flex items-center justify-between border-b border-stone-100 p-4"><div><h2 className="font-semibold">Content</h2><p className={`text-xs ${saveState === "error" ? "text-red-600" : "text-stone-400"}`}>{saveState === "saving" ? "Saving…" : saveState === "error" ? "Couldn’t save" : "All changes saved"}</p></div><button onClick={() => setShowPicker(!showPicker)} className="grid h-9 w-9 place-items-center rounded-lg bg-black text-xl text-white">+</button></div>
+      {showPicker && <div className="grid grid-cols-2 gap-2 border-b border-stone-200 p-3">{QUESTION_TYPES.map((item) => <button key={item.type} onClick={() => addMutation.mutate(item.type)} className="rounded-lg border border-stone-200 p-2 text-left hover:border-black"><span className="block text-base font-semibold">{item.icon}</span><span className="text-xs">{item.label}</span></button>)}</div>}
+      <div className="flex-1 space-y-1 overflow-y-auto p-2">{questions.map((question, index) => <button key={question.id} draggable onDragStart={() => setDraggedId(question.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedId) void reorder(draggedId, question.id); setDraggedId(null); }} onKeyDown={(event) => { if (event.altKey && event.key === "ArrowUp") { event.preventDefault(); moveByKeyboard(question.id, -1); } if (event.altKey && event.key === "ArrowDown") { event.preventDefault(); moveByKeyboard(question.id, 1); } }} onClick={() => setActiveId(question.id)} className={`flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-sm ${activeId === question.id ? "bg-stone-900 text-white" : "hover:bg-stone-100"}`}><span className="cursor-grab opacity-50">⋮⋮</span><span className="grid h-6 w-6 shrink-0 place-items-center rounded bg-white/15 text-xs">{index + 1}</span><span className="truncate">{question.title}</span>{question.required && <span className="ml-auto">*</span>}</button>)}</div>
+      <button onClick={() => setShowPicker(true)} className="m-3 rounded-lg border border-stone-300 py-2.5 text-sm font-semibold">+ Add question</button>
+    </aside>
+    <main className="min-w-0 flex-1 overflow-y-auto bg-[#f5f3ef] p-5 md:p-10">
+      <div className="mx-auto max-w-3xl"><input aria-label="Form title" defaultValue={formQuery.data?.title} onBlur={async (event) => { const title = event.target.value.trim() || "Untitled form"; if (title !== formQuery.data?.title) { setSaveState("saving"); try { await apiClient.forms.update(id, { title }); await queryClient.invalidateQueries({ queryKey: ["forms", id] }); setSaveState("saved"); } catch { setSaveState("error"); } } }} className="mb-10 w-full bg-transparent text-2xl font-semibold outline-none" />
+        {activeQuestion ? <section key={activeQuestion.id} className="rounded-2xl border border-stone-200 bg-white p-7 shadow-sm md:p-12"><div className="flex gap-4"><span className="pt-2 text-sm font-semibold text-stone-500">{questions.findIndex((item) => item.id === activeQuestion.id) + 1} →</span><div className="min-w-0 flex-1"><input aria-label="Question title" defaultValue={activeQuestion.title} onBlur={(event) => { const title = event.target.value.trim() || "Untitled question"; if (title !== activeQuestion.title) void save(activeQuestion.id, { title }); }} className="w-full bg-transparent text-2xl font-medium outline-none md:text-3xl" /><input aria-label="Question description" defaultValue={activeQuestion.description ?? ""} onBlur={(event) => { if (event.target.value !== (activeQuestion.description ?? "")) void save(activeQuestion.id, { description: event.target.value }); }} placeholder="Add a description (optional)" className="mt-3 w-full bg-transparent text-lg text-stone-500 outline-none" /><div className="mt-10"><AnswerPreview question={activeQuestion} /></div></div></div></section> : <div className="grid min-h-80 place-items-center rounded-2xl border-2 border-dashed border-stone-300 text-center text-stone-500"><div><p className="text-lg font-medium">Your form is empty</p><button onClick={() => setShowPicker(true)} className="mt-3 rounded-lg bg-black px-4 py-2 text-white">Add your first question</button></div></div>}
       </div>
-    );
-  }
-
-  const activeQuestion = questions?.find((q) => q.id === activeQuestionId);
-
-  return (
-    <div className="flex h-full w-full">
-      {/* LEFT PANE: Navigator */}
-      <div className="flex w-64 shrink-0 flex-col border-r border-gray-200 bg-white">
-        <div className="flex items-center justify-between border-b border-gray-100 p-4">
-          <h2 className="font-semibold text-gray-900">Questions</h2>
-          <button
-            onClick={() => createQuestion.mutate("text")}
-            className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-black"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-2">
-          {questions?.length === 0 ? (
-            <div className="p-4 text-center text-sm text-gray-500">
-              No questions yet. Click + to add one.
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1">
-              {questions?.map((q, i) => (
-                <button
-                  key={q.id}
-                  onClick={() => setActiveQuestionId(q.id)}
-                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                    activeQuestionId === q.id
-                      ? "bg-blue-50 text-blue-700"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-gray-200 text-[10px] font-bold text-gray-500">
-                    {i + 1}
-                  </span>
-                  <span className="truncate">{q.title || "Untitled"}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* CENTER PANE: Canvas */}
-      <div className="flex flex-1 flex-col overflow-y-auto bg-gray-50">
-        <div className="mx-auto w-full max-w-3xl p-8">
-          <input
-            type="text"
-            className="mb-8 w-full border-none bg-transparent text-3xl font-bold text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-0"
-            defaultValue={form?.title}
-            placeholder="Form Title"
-            onBlur={(e) => {
-              if (e.target.value !== form?.title) {
-                apiClient.forms.update(id, { title: e.target.value });
-              }
-            }}
-          />
-
-          {activeQuestion ? (
-            <div className="flex w-full h-full items-center justify-center p-8">
-              <div className="w-full max-w-3xl space-y-4">
-                <div className="flex items-start gap-4">
-                  <span className="text-2xl font-bold text-blue-600 flex-shrink-0 mt-1">
-                    {questions.findIndex((q) => q.id === activeQuestion.id) + 1} &rarr;
-                  </span>
-                  <div className="flex-1 space-y-4">
-                    <input
-                      type="text"
-                      className="w-full border-none bg-transparent text-3xl font-medium text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-0"
-                      defaultValue={activeQuestion.title}
-                      placeholder="Your question here..."
-                      onBlur={(e) => {
-                        if (e.target.value !== activeQuestion.title) {
-                          apiClient.questions.update(id, activeQuestion.id, { title: e.target.value }).then(() => {
-                            queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
-                          });
-                        }
-                      }}
-                    />
-                    <input
-                      type="text"
-                      className="w-full border-none bg-transparent text-xl text-gray-500 placeholder:text-gray-300 focus:outline-none focus:ring-0"
-                      defaultValue={activeQuestion.description || ""}
-                      placeholder="Description (optional)"
-                      onBlur={(e) => {
-                        if (e.target.value !== activeQuestion.description) {
-                          apiClient.questions.update(id, activeQuestion.id, { description: e.target.value }).then(() => {
-                            queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
-                          });
-                        }
-                      }}
-                    />
-                    
-                    <div className="mt-12 pt-4">
-                       {activeQuestion.type === "text" && (
-                         <div className="text-2xl text-blue-300 border-b-2 border-blue-200 pb-2 w-full max-w-2xl">Type your answer here...</div>
-                       )}
-                       {activeQuestion.type === "long_text" && (
-                         <div className="text-2xl text-blue-300 border-b-2 border-blue-200 pb-12 w-full max-w-2xl">Type a long answer here...</div>
-                       )}
-                       {activeQuestion.type === "email" && (
-                         <div className="text-2xl text-blue-300 border-b-2 border-blue-200 pb-2 w-full max-w-2xl">name@example.com</div>
-                       )}
-                       {activeQuestion.type === "number" && (
-                         <div className="text-2xl text-blue-300 border-b-2 border-blue-200 pb-2 w-full max-w-2xl">123</div>
-                       )}
-                       {activeQuestion.type === "phone" && (
-                         <div className="text-2xl text-blue-300 border-b-2 border-blue-200 pb-2 w-full max-w-2xl">(555) 555-5555</div>
-                       )}
-                       {activeQuestion.type === "url" && (
-                         <div className="text-2xl text-blue-300 border-b-2 border-blue-200 pb-2 w-full max-w-2xl">https://...</div>
-                       )}
-                       {activeQuestion.type === "boolean" && (
-                         <div className="flex gap-4">
-                            <div className="rounded-lg border border-blue-200 bg-blue-50 px-8 py-3 text-xl font-medium text-blue-700">Y / Yes</div>
-                            <div className="rounded-lg border border-gray-200 bg-gray-50 px-8 py-3 text-xl font-medium text-gray-500">N / No</div>
-                         </div>
-                       )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex h-64 items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-white/50 text-gray-500">
-              Select a question to edit, or add a new one.
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* RIGHT PANE: Inspector */}
-      <div className="w-80 shrink-0 border-l border-gray-200 bg-white p-4">
-        <h2 className="mb-4 font-semibold text-gray-900">Settings</h2>
-        {activeQuestion ? (
-          <div className="flex flex-col gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Type</label>
-              <select 
-                className="w-full rounded-md border border-gray-300 bg-white text-gray-900 p-2 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
-                value={activeQuestion.type}
-                onChange={(e) => {
-                  apiClient.questions.update(id, activeQuestion.id, { type: e.target.value }).then(() => {
-                    queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
-                  });
-                }}
-              >
-                <option value="text">Short Text</option>
-                <option value="long_text">Long Text</option>
-                <option value="email">Email</option>
-                <option value="number">Number</option>
-                <option value="phone">Phone Number</option>
-                <option value="url">Website URL</option>
-                <option value="boolean">Yes/No</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <input 
-                type="checkbox" 
-                id="required" 
-                checked={activeQuestion.required} 
-                onChange={(e) => {
-                  apiClient.questions.update(id, activeQuestion.id, { required: e.target.checked }).then(() => {
-                    queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
-                  });
-                }} 
-                className="rounded border-gray-300 text-black focus:ring-black" 
-              />
-              <label htmlFor="required" className="text-sm font-medium text-gray-700">Required</label>
-            </div>
-            <div className="mt-8 pt-4 border-t border-gray-200">
-              <button 
-                onClick={() => {
-                  apiClient.questions.delete(id, activeQuestion.id).then(() => {
-                    queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
-                    setActiveQuestionId(null);
-                  });
-                }}
-                className="w-full rounded-md bg-red-50 py-2 text-sm font-medium text-red-600 hover:bg-red-100 transition-colors"
-              >
-                Delete Question
-              </button>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500">Select a question to view its settings.</p>
-        )}
-      </div>
-    </div>
-  );
+    </main>
+    {activeQuestion && <Inspector question={activeQuestion} onSave={(payload) => void save(activeQuestion.id, payload)} onDuplicate={() => { void apiClient.questions.duplicate(id, activeQuestion.id).then(async (question) => { await refresh(); setActiveId(question.id); }); }} onDelete={() => { if (window.confirm(`Delete “${activeQuestion.title}”?`)) void apiClient.questions.delete(id, activeQuestion.id).then(async () => { setActiveId(null); await refresh(); }); }} />}
+  </div>;
 }

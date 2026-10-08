@@ -17,52 +17,43 @@
 - Verified empty-database migration locally
 - Initial commit with tooling
 
-## Current Milestone
-
 ### Milestone 2: Demo Session and Workspace Isolation
 - Setup FastAPI session dependencies
 - Implement Next.js BFF proxy
 - Create "Enter demo workspace" UI
-
-## Current Milestone
 
 ### Milestone 3: Core Form Builder
 - Scaffold builder layout
 - Implement form creation and navigator
 - Implement question settings and canvas
 
-## Current Milestone
-
 ### Milestone 4: Form Publishing & API
 - Publish form API endpoint
 - Form versioning snapshot implementation
 - Public routing and SSR
-
-## Current Milestone
 
 ### Milestone 5: Respondent Experience
 - One-question-at-a-time UI
 - Animation and transitions
 - Submission API
 
-## Current Milestone
-
 ### Milestone 6: Results & Analytics
 - Form submission processing
 - Results view in workspace
 - Data aggregation
 
-## Current Milestone
-
 ### Milestone 7: Polish & Handover
-- ✅ E2E testing check
+- ✅ Frontend lint and production build
+- ✅ Backend lint, static typing, schema + end-to-end API-flow tests, and migrations
 - ✅ Vercel + Railway deployment config
+- ⏳ Hosted links require repository-owner deployment credentials
 
-**Project Complete! 🎉**
+**Core assignment implementation complete; deployment remains owner-operated.**
 
 ## Known Defects
 
-None yet.
+- Automated browser E2E coverage is documented but not yet implemented.
+- Advanced logic, integrations, collaboration, payments, file upload, and editable themes remain explicit placeholders, as permitted by the assignment.
 
 ## Blockers
 
@@ -70,5 +61,7 @@ None.
 
 ## Last Verified Checks
 
-- SQLite migration executed successfully.
-- Frontend pnpm install succeeded.
+- Frontend lint succeeds.
+- Frontend production build succeeds.
+- Backend Ruff checks succeed.
+- Backend schema tests succeed.

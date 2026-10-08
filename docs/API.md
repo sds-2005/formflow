@@ -318,7 +318,7 @@ Fetch published form for respondent.
 **Response:** `200`
 ```json
 {
-  "form_id": "uuid",
+  "id": "uuid",
   "title": "Customer Feedback",
   "version_id": "version-uuid",
   "questions": [
@@ -338,7 +338,7 @@ Fetch published form for respondent.
 
 If unpublished or not found: `404` with "This form is not available"
 
-### POST `/api/v1/public/forms/:slug/submit`
+### POST `/api/v1/public/forms/:slug/submissions`
 Submit a response.
 
 **Request:**
@@ -346,24 +346,12 @@ Submit a response.
 {
   "version_id": "version-uuid",
   "idempotency_key": "client-generated-uuid",
-  "answers": [
-    {
-      "question_id": "uuid",
-      "value": "John Doe"
-    },
-    {
-      "question_id": "uuid",
-      "value": 4
-    },
-    {
-      "question_id": "uuid",
-      "value": true
-    },
-    {
-      "question_id": "uuid",
-      "value": ["option-uuid-1"]
-    }
-  ]
+  "answers": {
+    "short-text-question-uuid": "John Doe",
+    "rating-question-uuid": 4,
+    "yes-no-question-uuid": true,
+    "choice-question-uuid": "option-uuid-1"
+  }
 }
 ```
 
@@ -379,26 +367,34 @@ Submit a response.
 **Response:** `201`
 ```json
 {
-  "submission_id": "uuid",
+  "id": "uuid",
+  "form_id": "uuid",
+  "form_version_id": "version-uuid",
   "submitted_at": "2026-10-07T15:00:00Z",
-  "message": "Thank you for your response!"
+  "answers": {"question-uuid": "John Doe"}
 }
 ```
 
-**Idempotent:** Same idempotency_key → `200` with original submission_id
+**Idempotent:** The same `idempotency_key` returns the original submission.
 
 ## 7. Results Routes
 
-Require valid creator session. Form ownership verified.
+Requires a valid creator session. Form ownership is verified.
 
-### GET `/api/v1/forms/:id/results/summary`
-Aggregate statistics.
+### GET `/api/v1/forms/:id/results`
+Returns aggregate statistics and the response table in one request.
 
 **Response:** `200`
 ```json
 {
-  "form_id": "uuid",
   "total_submissions": 42,
+  "submissions": [
+    {
+      "id": "uuid",
+      "submitted_at": "2026-10-07T15:00:00Z",
+      "answers": {"question-uuid": "John Doe"}
+    }
+  ],
   "questions": [
     {
       "question_id": "uuid",
@@ -407,8 +403,8 @@ Aggregate statistics.
       "total_answers": 42,
       "summary": {
         "options": [
-          {"option_id": "uuid", "label": "Developer", "count": 25, "percentage": 59.5},
-          {"option_id": "uuid", "label": "Designer", "count": 17, "percentage": 40.5}
+          {"label": "Developer", "count": 25, "percentage": 59.5},
+          {"label": "Designer", "count": 17, "percentage": 40.5}
         ]
       }
     },
@@ -438,33 +434,7 @@ Aggregate statistics.
 }
 ```
 
-### GET `/api/v1/forms/:id/results/submissions`
-Paginated submissions.
-
-**Query params:** `?page=1&page_size=20`
-
-**Response:** `200`
-```json
-{
-  "items": [
-    {
-      "id": "uuid",
-      "submitted_at": "2026-10-07T15:00:00Z",
-      "answers_preview": {
-        "question-uuid-1": "John Doe",
-        "question-uuid-2": "4",
-        "question-uuid-3": "Yes"
-      }
-    }
-  ],
-  "total": 42,
-  "page": 1,
-  "page_size": 20,
-  "has_more": true
-}
-```
-
-### GET `/api/v1/forms/:id/results/submissions/:submissionId`
+### GET `/api/v1/forms/:id/results/:submissionId`
 Full individual response.
 
 **Response:** `200`
@@ -472,23 +442,18 @@ Full individual response.
 {
   "id": "uuid",
   "submitted_at": "2026-10-07T15:00:00Z",
-  "form_version_id": "version-uuid",
   "answers": [
     {
       "question_id": "uuid",
       "question_title": "What's your name?",
       "question_type": "short_text",
-      "value": "John Doe",
-      "selected_options": null
+      "value": "John Doe"
     },
     {
       "question_id": "uuid",
       "question_title": "Your role?",
       "question_type": "multiple_choice",
-      "value": null,
-      "selected_options": [
-        {"option_id": "uuid", "label": "Developer"}
-      ]
+      "value": "Developer"
     }
   ]
 }

@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, PublicForm } from "@/lib/api-client";
 import RespondentFlow from "@/components/respondent-flow";
 
 export default function PreviewPage({
@@ -30,8 +30,14 @@ export default function PreviewPage({
     );
   }
 
-  const previewForm = {
-    ...form,
+  if (!form) {
+    return <div className="grid h-full w-full place-items-center">Form not found.</div>;
+  }
+
+  const previewForm: PublicForm = {
+    id: form.id,
+    title: form.title,
+    slug: form.slug,
     questions: questions || [],
   };
 

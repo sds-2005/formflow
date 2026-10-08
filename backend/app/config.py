@@ -1,6 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
-import os
+
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./dev.db"
@@ -10,13 +9,16 @@ class Settings(BaseSettings):
     SESSION_EXPIRY_HOURS: int = 24
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
     @property
-    def cors_origins(self) -> List[str]:
-        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
+    def cors_origins(self) -> list[str]:
+        return [
+            origin.strip()
+            for origin in self.ALLOWED_ORIGINS.split(",")
+            if origin.strip()
+        ]
+
 
 settings = Settings()

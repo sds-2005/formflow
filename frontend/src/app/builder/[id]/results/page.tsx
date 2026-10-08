@@ -2,91 +2,33 @@
 
 import { use, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, AnswerValue, QuestionSummary, SubmissionDetail } from "@/lib/api-client";
 
-export default function ResultsPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+function SummaryCard({ item }: { item: QuestionSummary }) {
+  const summary = item.summary;
+  return <article className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><div className="mb-4 flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-wider text-stone-400">{item.type.replaceAll("_", " ")}</p><h3 className="mt-1 font-semibold">{item.title}</h3></div><span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs text-stone-500">{item.total_answers} answers</span></div>
+    {summary.options ? <div className="space-y-3">{summary.options.map((option) => <div key={option.label}><div className="mb-1 flex justify-between text-sm"><span>{option.label}</span><span className="text-stone-500">{option.count} · {option.percentage}%</span></div><div className="h-2 overflow-hidden rounded-full bg-stone-100"><div className="h-full rounded-full bg-[#6b55b5]" style={{ width: `${option.percentage}%` }} /></div></div>)}</div> : summary.count !== undefined ? <div className="grid grid-cols-3 gap-3 text-center"><div className="rounded-xl bg-stone-50 p-3"><strong className="block text-xl">{summary.average ?? "—"}</strong><span className="text-xs text-stone-500">Average</span></div><div className="rounded-xl bg-stone-50 p-3"><strong className="block text-xl">{summary.min ?? "—"}</strong><span className="text-xs text-stone-500">Min</span></div><div className="rounded-xl bg-stone-50 p-3"><strong className="block text-xl">{summary.max ?? "—"}</strong><span className="text-xs text-stone-500">Max</span></div></div> : <div className="space-y-2">{summary.recent_values?.length ? summary.recent_values.map((value, index) => <p key={index} className="truncate rounded-lg bg-stone-50 px-3 py-2 text-sm">{String(value)}</p>) : <p className="text-sm text-stone-400">No answers yet</p>}</div>}
+  </article>;
+}
+
+function DetailDialog({ detail, onClose }: { detail: SubmissionDetail; onClose: () => void }) {
+  return <div role="dialog" aria-modal="true" aria-label="Response details" className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onMouseDown={onClose}><div className="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}><div className="mb-6 flex items-start justify-between"><div><p className="text-xs font-semibold uppercase text-stone-400">Individual response</p><h2 className="mt-1 text-xl font-semibold">Submitted {new Date(detail.submitted_at).toLocaleString()}</h2></div><button aria-label="Close response" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg bg-stone-100 text-xl">×</button></div><div className="space-y-5">{detail.answers.map((answer, index) => <div key={answer.question_id}><p className="text-sm font-medium text-stone-500">{index + 1}. {answer.question_title}</p><p className="mt-1 text-lg">{answer.value === true ? "Yes" : answer.value === false ? "No" : String(answer.value ?? "—")}</p></div>)}</div></div></div>;
+}
+
+function displayValue(value: AnswerValue | undefined) { return value === true ? "Yes" : value === false ? "No" : value === null || value === undefined || value === "" ? "—" : String(value); }
+
+export default function ResultsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-
-  const { data: form, isLoading: formLoading } = useQuery({
-    queryKey: ["forms", id],
-    queryFn: () => apiClient.forms.get(id),
-  });
-
-  const { data: questions, isLoading: questionsLoading } = useQuery({
-    queryKey: ["forms", id, "questions"],
-    queryFn: () => apiClient.questions.list(id),
-  });
-
-  const { data: results, isLoading: resultsLoading } = useQuery({
-    queryKey: ["forms", id, "results"],
-    queryFn: () => apiClient.forms.results(id),
-  });
-
-  if (formLoading || questionsLoading || resultsLoading) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-black"></div>
-      </div>
-    );
-  }
-
-  const submissions = results?.submissions || [];
-
-  return (
-    <div className="flex h-full w-full flex-col overflow-y-auto bg-gray-50 p-8">
-      <div className="mx-auto w-full max-w-6xl">
-        <div className="mb-8 flex items-end justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{form?.title}</h1>
-            <p className="mt-2 text-gray-500">Results and Analytics</p>
-          </div>
-          <div className="rounded-xl border border-gray-200 bg-white px-6 py-4 shadow-sm">
-            <p className="text-sm font-medium text-gray-500">Total Responses</p>
-            <p className="mt-1 text-3xl font-bold text-black">{submissions.length}</p>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          {submissions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-16 text-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="mb-4 text-gray-400"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              <h3 className="text-lg font-medium text-gray-900">No responses yet</h3>
-              <p className="mt-1 text-gray-500">Share your form to start collecting data.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-gray-600">
-                <thead className="bg-gray-50 text-xs font-semibold uppercase text-gray-500 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-4">Submitted At</th>
-                    {questions?.map((q) => (
-                      <th key={q.id} className="px-6 py-4 whitespace-nowrap">{q.title}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {submissions.map((sub: any) => (
-                    <tr key={sub.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                        {new Date(sub.submitted_at).toLocaleString()}
-                      </td>
-                      {questions?.map((q) => (
-                        <td key={q.id} className="px-6 py-4">
-                          {sub.answers[q.id] || <span className="text-gray-300">-</span>}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const formQuery = useQuery({ queryKey: ["forms", id], queryFn: () => apiClient.forms.get(id) });
+  const questionsQuery = useQuery({ queryKey: ["forms", id, "questions"], queryFn: () => apiClient.questions.list(id) });
+  const resultsQuery = useQuery({ queryKey: ["forms", id, "results"], queryFn: () => apiClient.forms.results(id) });
+  const detailQuery = useQuery({ queryKey: ["forms", id, "results", selectedId], queryFn: () => apiClient.forms.submission(id, selectedId as string), enabled: Boolean(selectedId) });
+  const exportCsv = () => { const results = resultsQuery.data; const questions = questionsQuery.data ?? []; if (!results) return; const escape = (value: string) => `"${value.replaceAll('"', '""')}"`; const lines = [["Submitted at", ...questions.map((question) => question.title)].map(escape).join(","), ...results.submissions.map((submission) => [submission.submitted_at, ...questions.map((question) => displayValue(submission.answers[question.id]))].map(escape).join(","))]; const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" })); link.download = `${formQuery.data?.title ?? "responses"}.csv`; link.click(); URL.revokeObjectURL(link.href); };
+  if (formQuery.isLoading || questionsQuery.isLoading || resultsQuery.isLoading) return <div className="grid h-full w-full place-items-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-stone-200 border-t-black" /></div>;
+  if (formQuery.isError || questionsQuery.isError || resultsQuery.isError) return <div className="grid h-full w-full place-items-center"><div className="text-center"><h2 className="text-xl font-semibold">Couldn&apos;t load results</h2><button onClick={() => void resultsQuery.refetch()} className="mt-4 rounded-lg bg-black px-4 py-2 text-white">Retry</button></div></div>;
+  const results = resultsQuery.data;
+  return <div className="h-full w-full overflow-y-auto bg-[#f7f6f3] p-6 md:p-10"><div className="mx-auto max-w-6xl"><header className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-sm font-semibold uppercase tracking-wider text-stone-400">Results</p><h1 className="mt-1 text-3xl font-semibold">{formQuery.data?.title}</h1><p className="mt-2 text-stone-500">{results?.total_submissions ?? 0} total responses</p></div><button disabled={!results?.submissions.length} onClick={exportCsv} className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold disabled:opacity-40">Export CSV</button></header>
+    {!results?.submissions.length ? <div className="grid min-h-64 place-items-center rounded-2xl border-2 border-dashed border-stone-300 bg-white text-center"><div><div className="text-3xl">☷</div><h2 className="mt-3 font-semibold">No responses yet</h2><p className="mt-1 text-sm text-stone-500">Publish and share your form to start collecting answers.</p></div></div> : <><section aria-label="Question summaries" className="mb-8 grid gap-4 md:grid-cols-2">{results.questions.map((item) => <SummaryCard key={item.question_id} item={item} />)}</section><section className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm"><div className="border-b border-stone-200 px-5 py-4"><h2 className="font-semibold">All responses</h2><p className="text-xs text-stone-400">Select a row to view the complete response</p></div><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-stone-50 text-xs uppercase text-stone-500"><tr><th className="whitespace-nowrap px-5 py-3">Submitted</th>{questionsQuery.data?.map((question) => <th key={question.id} className="min-w-44 px-5 py-3">{question.title}</th>)}</tr></thead><tbody className="divide-y divide-stone-100">{results.submissions.map((submission) => <tr key={submission.id} tabIndex={0} onClick={() => setSelectedId(submission.id)} onKeyDown={(event) => { if (event.key === "Enter") setSelectedId(submission.id); }} className="cursor-pointer hover:bg-stone-50"><td className="whitespace-nowrap px-5 py-4 font-medium">{new Date(submission.submitted_at).toLocaleString()}</td>{questionsQuery.data?.map((question) => <td key={question.id} className="max-w-64 truncate px-5 py-4 text-stone-600">{displayValue(submission.answers[question.id])}</td>)}</tr>)}</tbody></table></div></section></>}
+  </div>{selectedId && detailQuery.data && <DetailDialog detail={detailQuery.data} onClose={() => setSelectedId(null)} />}</div>;
 }

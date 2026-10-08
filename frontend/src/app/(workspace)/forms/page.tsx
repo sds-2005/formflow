@@ -1,125 +1,31 @@
 "use client";
 
-import { apiClient } from "@/lib/api-client";
-import { useRouter } from "next/navigation";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { apiClient, FormSummary } from "@/lib/api-client";
 
 export default function WorkspacePage() {
   const router = useRouter();
-
-  const { data: user } = useQuery({
-    queryKey: ["me"],
-    queryFn: () => apiClient.auth.me(),
-  });
-
-  const { data, isLoading } = useQuery({
-    queryKey: ["forms"],
-    queryFn: () => apiClient.forms.list(),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (title: string) => apiClient.forms.create({ title }),
-    onSuccess: (newForm) => {
-      router.push(`/builder/${newForm.id}`);
-    },
-  });
-
-  return (
-    <div className="mx-auto max-w-6xl p-6 md:p-10">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-            Welcome back{user?.display_name ? `, ${user.display_name}` : ""}
-          </h1>
-          <p className="mt-2 text-gray-600">
-            Create a new form or manage your existing ones.
-          </p>
-        </div>
-        <button
-          onClick={() => createMutation.mutate("My new form")}
-          disabled={createMutation.isPending}
-          className="rounded-lg bg-black px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:bg-gray-400"
-        >
-          {createMutation.isPending ? "Creating..." : "+ Create form"}
-        </button>
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center p-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-black"></div>
-        </div>
-      ) : data?.forms.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="28"
-              height="28"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-gray-500"
-            >
-              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="12" y1="18" x2="12" y2="12" />
-              <line x1="9" y1="15" x2="15" y2="15" />
-            </svg>
-          </div>
-          <h3 className="mb-2 text-lg font-semibold text-gray-900">No forms yet</h3>
-          <p className="mb-6 max-w-md text-gray-600">
-            You haven't created any forms in this demo workspace yet. Click the button above to get started.
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {data?.forms.map((form) => (
-            <Link
-              key={form.id}
-              href={`/builder/${form.id}`}
-              className="group block rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:border-gray-300 hover:shadow-md"
-            >
-              <div className="mb-4 flex items-start justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-500 transition-colors group-hover:bg-black group-hover:text-white">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-                </div>
-                <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    form.status === "published"
-                      ? "bg-green-100 text-green-800"
-                      : "bg-yellow-100 text-yellow-800"
-                  }`}
-                >
-                  {form.status}
-                </span>
-              </div>
-              <h3 className="mb-1 truncate text-lg font-semibold text-gray-900">
-                {form.title}
-              </h3>
-              <p className="text-sm text-gray-500">
-                {form.response_count} response{form.response_count !== 1 && "s"}
-              </p>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  useEffect(() => { const timer = setTimeout(() => setDebouncedSearch(search), 300); return () => clearTimeout(timer); }, [search]);
+  useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(null), 3500); return () => clearTimeout(timer); }, [toast]);
+  const userQuery = useQuery({ queryKey: ["me"], queryFn: apiClient.auth.me });
+  const formsQuery = useQuery({ queryKey: ["forms", debouncedSearch], queryFn: () => apiClient.forms.list(debouncedSearch) });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["forms"] });
+  const createMutation = useMutation({ mutationFn: () => apiClient.forms.create({ title: "Untitled form" }), onSuccess: (form) => router.push(`/builder/${form.id}`) });
+  const action = async (label: string, operation: () => Promise<unknown>) => { setOpenMenu(null); try { await operation(); await refresh(); setToast(label); } catch (error) { setToast(error instanceof Error ? error.message : "Something went wrong"); } };
+  const rename = (form: FormSummary) => { const title = window.prompt("Rename form", form.title)?.trim(); if (title && title !== form.title) void action("Form renamed", () => apiClient.forms.update(form.id, { title })); };
+  const remove = (form: FormSummary) => { if (window.confirm(`Delete “${form.title}”? This permanently removes the form and all ${form.response_count} responses.`)) void action("Form deleted", () => apiClient.forms.delete(form.id)); };
+  return <div className="mx-auto max-w-7xl p-6 md:p-10">
+    <header className="mb-10 flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><p className="mb-2 text-sm font-semibold text-stone-500">MY WORKSPACE</p><h1 className="text-3xl font-semibold tracking-tight">Good to see you{userQuery.data?.display_name ? `, ${userQuery.data.display_name}` : ""}</h1><p className="mt-2 text-stone-500">Create, publish, and understand your forms.</p></div><button onClick={() => createMutation.mutate()} disabled={createMutation.isPending} className="rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-800 disabled:opacity-50">{createMutation.isPending ? "Creating…" : "+ Create form"}</button></header>
+    <div className="mb-6 flex items-center rounded-xl border border-stone-200 bg-white px-4 shadow-sm"><span className="text-stone-400">⌕</span><input aria-label="Search forms" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search your forms" className="w-full bg-transparent px-3 py-3 outline-none" />{search && <button onClick={() => setSearch("")} className="text-sm text-stone-500">Clear</button>}</div>
+    {formsQuery.isLoading ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2].map((item) => <div key={item} className="h-48 animate-pulse rounded-2xl bg-stone-200" />)}</div> : formsQuery.isError ? <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center"><h2 className="font-semibold">Couldn&apos;t load your forms</h2><button onClick={() => void formsQuery.refetch()} className="mt-4 rounded-lg bg-black px-4 py-2 text-white">Retry</button></div> : formsQuery.data?.forms.length === 0 ? <div className="grid min-h-72 place-items-center rounded-2xl border-2 border-dashed border-stone-300 bg-white text-center"><div><div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-stone-100 text-2xl">✦</div><h2 className="text-lg font-semibold">{debouncedSearch ? "No matching forms" : "Make your first form"}</h2><p className="mt-2 text-sm text-stone-500">{debouncedSearch ? "Try a different search." : "Build a polished, conversational form in minutes."}</p>{!debouncedSearch && <button onClick={() => createMutation.mutate()} className="mt-5 rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white">Create form</button>}</div></div> : <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{formsQuery.data?.forms.map((form) => <article key={form.id} className="group relative rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><div className="mb-8 flex items-start justify-between"><Link href={`/builder/${form.id}`} className="grid h-11 w-11 place-items-center rounded-xl bg-[#efeafd] text-lg text-[#5b43a6]">✦</Link><div className="relative"><button aria-label={`Actions for ${form.title}`} onClick={() => setOpenMenu(openMenu === form.id ? null : form.id)} className="grid h-9 w-9 place-items-center rounded-lg text-xl text-stone-400 hover:bg-stone-100">⋯</button>{openMenu === form.id && <div className="absolute right-0 z-20 mt-1 w-44 rounded-xl border border-stone-200 bg-white p-1.5 text-sm shadow-xl"><button onClick={() => rename(form)} className="w-full rounded-lg px-3 py-2 text-left hover:bg-stone-100">Rename</button><button onClick={() => void action("Form duplicated", () => apiClient.forms.duplicate(form.id))} className="w-full rounded-lg px-3 py-2 text-left hover:bg-stone-100">Duplicate</button><button onClick={() => void action(form.status === "published" ? "Form unpublished" : "Form published", () => form.status === "published" ? apiClient.forms.unpublish(form.id) : apiClient.forms.publish(form.id))} className="w-full rounded-lg px-3 py-2 text-left hover:bg-stone-100">{form.status === "published" ? "Unpublish" : "Publish"}</button><Link href={`/builder/${form.id}/preview`} target="_blank" className="block rounded-lg px-3 py-2 hover:bg-stone-100">Preview</Link><Link href={`/builder/${form.id}/results`} className="block rounded-lg px-3 py-2 hover:bg-stone-100">Results</Link><button onClick={() => remove(form)} className="w-full rounded-lg px-3 py-2 text-left text-red-600 hover:bg-red-50">Delete</button></div>}</div></div><Link href={`/builder/${form.id}`}><h2 className="truncate text-lg font-semibold">{form.title}</h2><div className="mt-3 flex items-center gap-2 text-xs text-stone-500"><span className={`rounded-full px-2.5 py-1 font-medium ${form.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-stone-100 text-stone-600"}`}>{form.status === "published" ? "Published" : "Draft"}</span><span>{form.question_count} questions</span><span>·</span><span>{form.response_count} responses</span></div><p className="mt-4 text-xs text-stone-400">Edited {new Date(form.updated_at).toLocaleDateString()}</p></Link></article>)}</div>}
+    {toast && <div role="status" className="fixed bottom-6 right-6 z-50 rounded-xl bg-stone-900 px-5 py-3 text-sm font-medium text-white shadow-xl">{toast}</div>}
+  </div>;
 }
