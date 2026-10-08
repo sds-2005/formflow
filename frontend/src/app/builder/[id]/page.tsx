@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   apiClient,
@@ -8,6 +8,7 @@ import {
   QuestionPayload,
   QuestionType,
 } from "@/lib/api-client";
+import { queueBuilderSave } from "@/lib/builder-save-registry";
 
 const QUESTION_TYPES: Array<{ type: QuestionType; label: string; icon: string }> = [
   { type: "short_text", label: "Short text", icon: "Aa" },
@@ -24,7 +25,7 @@ function AnswerPreview({ question }: { question: Question }) {
   if (question.type === "multiple_choice") {
     return <div className="space-y-2">{question.options.map((option, index) => <div key={option.id} className="flex items-center gap-3 rounded-xl border border-stone-300 bg-white px-4 py-3 text-stone-700"><span className="grid h-7 w-7 place-items-center rounded border border-stone-300 text-xs font-semibold">{String.fromCharCode(65 + index)}</span>{option.label}</div>)}</div>;
   }
-  if (question.type === "dropdown") return <div className="rounded-xl border border-stone-300 bg-white px-4 py-3 text-stone-500">Choose an option <span className="float-right">⌄</span></div>;
+  if (question.type === "dropdown") return <select aria-label="Dropdown preview" disabled value="" className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-stone-500 disabled:opacity-100"><option value="">Choose an option…</option>{question.options.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select>;
   if (question.type === "yes_no") return <div className="flex gap-3"><div className="rounded-xl border border-stone-300 bg-white px-6 py-3">Y&nbsp;&nbsp; Yes</div><div className="rounded-xl border border-stone-300 bg-white px-6 py-3">N&nbsp;&nbsp; No</div></div>;
   if (question.type === "rating") return <div className="flex flex-wrap gap-2">{Array.from({ length: Number(question.settings.max ?? 5) }, (_, index) => <span key={index} className="grid h-11 w-11 place-items-center rounded-lg border border-stone-300 bg-white text-lg">{index + 1}</span>)}</div>;
   return <div className="border-b-2 border-stone-400 pb-2 text-2xl text-stone-400">{question.type === "email" ? "name@example.com" : question.type === "number" ? "Type a number…" : "Type your answer here…"}</div>;
@@ -74,13 +75,28 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const [showPicker, setShowPicker] = useState(false);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"saved" | "saving" | "error">("saved");
+  const pendingSaveCount = useRef(0);
   const formQuery = useQuery({ queryKey: ["forms", id], queryFn: () => apiClient.forms.get(id) });
   const questionsQuery = useQuery({ queryKey: ["forms", id, "questions"], queryFn: () => apiClient.questions.list(id) });
   const questions = useMemo(() => questionsQuery.data ?? [], [questionsQuery.data]);
   useEffect(() => { if (!activeId && questions[0]) setActiveId(questions[0].id); }, [activeId, questions]);
   const activeQuestion = questions.find((question) => question.id === activeId) ?? null;
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["forms", id, "questions"] });
-  const save = async (questionId: string, payload: QuestionPayload) => { setSaveState("saving"); try { await apiClient.questions.update(id, questionId, payload); await refresh(); setSaveState("saved"); } catch { setSaveState("error"); } };
+  const save = async (questionId: string, payload: QuestionPayload) => {
+    pendingSaveCount.current += 1;
+    setSaveState("saving");
+    try {
+      await queueBuilderSave(id, async () => {
+        await apiClient.questions.update(id, questionId, payload);
+        await refresh();
+      });
+      if (pendingSaveCount.current === 1) setSaveState("saved");
+    } catch {
+      setSaveState("error");
+    } finally {
+      pendingSaveCount.current -= 1;
+    }
+  };
   const addMutation = useMutation({ mutationFn: (type: QuestionType) => apiClient.questions.create(id, { type, title: "Untitled question", settings: type === "rating" ? { max: 5 } : {} }), onSuccess: async (question) => { await refresh(); setActiveId(question.id); setShowPicker(false); } });
   const reorder = async (sourceId: string, targetId: string) => { if (sourceId === targetId) return; const next = [...questions]; const from = next.findIndex((item) => item.id === sourceId); const to = next.findIndex((item) => item.id === targetId); const [moved] = next.splice(from, 1); next.splice(to, 0, moved); queryClient.setQueryData(["forms", id, "questions"], next); await apiClient.questions.reorder(id, next.map((item) => item.id)); await refresh(); };
   const moveByKeyboard = (questionId: string, delta: number) => { const index = questions.findIndex((item) => item.id === questionId); const target = questions[index + delta]; if (target) void reorder(questionId, target.id); };

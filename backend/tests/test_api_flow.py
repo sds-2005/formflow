@@ -91,6 +91,46 @@ def test_seeded_creator_publish_and_response_flow() -> None:
             )
             assert results.status_code == 200
             assert results.json()["total_submissions"] == 3
+
+            form = client.post(
+                "/api/v1/forms",
+                headers=auth_headers,
+                json={"title": "Dropdown labels"},
+            ).json()
+            question = client.post(
+                f"/api/v1/forms/{form['id']}/questions",
+                headers=auth_headers,
+                json={"type": "dropdown", "title": "Pick a color"},
+            ).json()
+            updated = client.patch(
+                f"/api/v1/forms/{form['id']}/questions/{question['id']}",
+                headers=auth_headers,
+                json={
+                    "options": [
+                        {"id": question["options"][0]["id"], "label": "Red"},
+                        {"id": question["options"][1]["id"], "label": "Blue"},
+                    ]
+                },
+            )
+            assert updated.status_code == 200
+            assert [option["label"] for option in updated.json()["options"]] == [
+                "Red",
+                "Blue",
+            ]
+            assert (
+                client.post(
+                    f"/api/v1/forms/{form['id']}/publish", headers=auth_headers
+                ).status_code
+                == 200
+            )
+            published_dropdown = client.get(
+                f"/api/v1/public/forms/{form['slug']}", headers=headers
+            )
+            assert published_dropdown.status_code == 200
+            assert [
+                option["label"]
+                for option in published_dropdown.json()["questions"][0]["options"]
+            ] == ["Red", "Blue"]
     finally:
         app.dependency_overrides.clear()
         asyncio.run(engine.dispose())

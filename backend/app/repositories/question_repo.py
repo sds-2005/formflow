@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -43,18 +43,24 @@ class QuestionRepository:
     async def replace_options(
         self, question: Question, options: list[tuple[str | None, str]]
     ) -> None:
-        await self.session.execute(
-            delete(QuestionOption).where(QuestionOption.question_id == question.id)
-        )
+        existing = {option.id: option for option in question.options}
+        replacements: list[QuestionOption] = []
+
         for position, (option_id, label) in enumerate(options):
-            self.session.add(
-                QuestionOption(
-                    id=option_id,
+            option = existing.pop(option_id, None) if option_id else None
+            if option is None:
+                option = QuestionOption(
+                    **({"id": option_id} if option_id else {}),
                     question_id=question.id,
                     label=label,
                     position=position,
                 )
-            )
+            else:
+                option.label = label
+                option.position = position
+            replacements.append(option)
+
+        question.options = replacements
         await self.session.flush()
 
     async def update_question(self, question: Question) -> Question:
