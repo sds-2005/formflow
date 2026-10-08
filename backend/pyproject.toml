@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Sahdeep Singh", email = "sahdeep.sds@gmail.com" }
 ]
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "aiosqlite>=0.22.1",
     "alembic>=1.20.0",
@@ -38,6 +38,6 @@ extend-exclude = ["migrations", "src"]
 ignore = ["B008", "UP037"]
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.12"
 explicit_package_bases = true
 exclude = ["migrations", "src"]

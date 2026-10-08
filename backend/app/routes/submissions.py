@@ -99,7 +99,7 @@ async def submit_form(
                 )
             try:
                 number = float(str(value))
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 raise HTTPException(
                     status_code=422, detail="Please enter a valid number"
                 )
